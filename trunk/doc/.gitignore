@@ -1,0 +1,10 @@
+doxy
+Doxyfile
+doxy-timestamp
+*.aux
+*.html
+*.log
+*.out
+*.pdf
+*.tex
+*.toc

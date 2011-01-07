@@ -1,0 +1,215 @@
+%{
+/* $Id: pbs_attrib.gperf 2677 2009-09-08 14:32:22Z mmamonski $ */
+/*
+ *  FedStage DRMAA for PBS Pro
+ *  Copyright (C) 2006-2009  FedStage Systems
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#ifdef HAVE_CONFIG_H
+#	include <config.h>
+#endif
+
+#include <drmaa_utils/drmaa_attrib.h>
+#include <drmaa_utils/template.h>
+#include <pbs_drmaa/pbs_attrib.h>
+
+#ifndef lint
+static char rcsid[]
+#	ifdef __GNUC__
+		__attribute__ ((unused))
+#	endif
+	= "$Id: pbs_attrib.gperf 2677 2009-09-08 14:32:22Z mmamonski $";
+#endif
+
+extern const fsd_attribute_t pbsdrmaa_pbs_attributes[];
+#define t(code) \
+	( & pbsdrmaa_pbs_attributes[ code ] )
+%}
+
+%language=ANSI-C
+%includes
+%readonly-tables
+%pic
+%define lookup-function-name pbsdrmaa_pbs_attrib_lookup
+%struct-type
+struct pbs_attrib { int name; const fsd_attribute_t *attr; }
+
+%%
+Execution_Time, t(PBSDRMAA_ATTR_EXECUTION_TIME)
+Checkpoint, t(PBSDRMAA_ATTR_CHECKPOINT)
+Error_Path, t(PBSDRMAA_ATTR_ERROR_PATH)
+group_list, t(PBSDRMAA_ATTR_GROUPS)
+Hold_Types, t(PBSDRMAA_ATTR_HOLD_TYPES)
+Join_Path, t(PBSDRMAA_ATTR_JOIN_FILES)
+Keep_Files, t(PBSDRMAA_ATTR_KEEP_FILES)
+# Resource_List, t(PBSDRMAA_ATTR_RESOURCES)
+Resource_List.cput, t(PBSDRMAA_ATTR_CPU_TIME_LIMIT)
+Resource_List.file, t(PBSDRMAA_ATTR_FILE_SIZE_LIMIT)
+Resource_List.nice, t(PBSDRMAA_ATTR_NICE)
+Resource_List.vmem, t(PBSDRMAA_ATTR_VMEM_LIMIT)
+Resource_List.pcput, t(PBSDRMAA_ATTR_SINGLE_CPU_TIME_LIMIT)
+Resource_List.pmem, t(PBSDRMAA_ATTR_SINGLE_RSS_LIMIT)
+Resource_List.pvmem, t(PBSDRMAA_ATTR_SINGLE_VMEM_LIMIT)
+Resource_List.walltime, t(PBSDRMAA_ATTR_WALLTIME_LIMIT)
+Resource_List.arch, t(PBSDRMAA_ATTR_ARCHITECTURE)
+Resource_List.host, t(PBSDRMAA_ATTR_HOST)
+Resource_List.nodes, t(PBSDRMAA_ATTR_NODES)
+Resource_List.software, t(PBSDRMAA_ATTR_SOFTWARE)
+Mail_Points, t(PBSDRMAA_ATTR_MAIL_POINTS)
+Output_Path, t(PBSDRMAA_ATTR_OUTPUT_PATH)
+Priority, t(PBSDRMAA_ATTR_PRIORITY)
+destination, t(PBSDRMAA_ATTR_DESITINATION)
+Rerunable, t(PBSDRMAA_ATTR_RERUNABLE)
+job_array_request, t(PBSDRMAA_ATTR_BULK_REQ)
+job_array_id, t(PBSDRMAA_ATTR_BULK_IDX)
+User_List, t(PBSDRMAA_ATTR_USERS)
+Variable_List, t(PBSDRMAA_ATTR_JOB_ENVIRONMENT)
+Account_Name, t(PBSDRMAA_ATTR_ACCOUNT_NAME)
+Mail_Users, t(PBSDRMAA_ATTR_EMAIL)
+Job_Name, t(PBSDRMAA_ATTR_JOB_NAME)
+Shell_Path_List, t(PBSDRMAA_ATTR_SHELL)
+depend, t(PBSDRMAA_ATTR_DEPEND)
+interactive, t(PBSDRMAA_ATTR_INTERACTIVE)
+stagein, t(PBSDRMAA_ATTR_STAGEIN)
+stageout, t(PBSDRMAA_ATTR_STAGEOUT)
+# additional job and general attribute names
+exec_host, t(PBSDRMAA_ATTR_EXECUTION_HOST)
+Job_Owner, t(PBSDRMAA_ATTR_JOB_OWNER)
+resources_used, t(PBSDRMAA_ATTR_RESOURCES_USED)
+job_state, t(PBSDRMAA_ATTR_JOB_STATE)
+queue, t(PBSDRMAA_ATTR_QUEUE)
+server, t(PBSDRMAA_ATTR_SERVER)
+comment, t(PBSDRMAA_ATTR_COMMENT)
+exit_status, t(PBSDRMAA_ATTR_EXIT_STATUS)
+start_time, t(PBSDRMAA_ATTR_START_TIME)
+x, t(PBSDRMAA_ATTR_EXTENSION)
+submit_args, t(PBSDRMAA_ATTR_SUBMIT_ARGS)
+mtime, t(PBSDRMAA_ATTR_MTIME)
+# reservation attributes:
+# reserve_start,       t(PBSDRMAA_ATTR_RESERVATION_START)
+# reserve_end,         t(PBSDRMAA_ATTR_RESERVATION_END)
+# reserve_duration,    t(PBSDRMAA_ATTR_RESERVATION_DURATION)
+# reserve_state,       t(PBSDRMAA_ATTR_RESERVATION_STATE)
+# reserve_substate,    t(PBSDRMAA_ATTR_RESERVATION_SUBSTATE)
+%%
+#undef t
+
+int
+pbsdrmaa_pbs_attrib_by_name( const char *name )
+{
+	const struct pbs_attrib *found;
+	found = pbsdrmaa_pbs_attrib_lookup( name, strlen(name) );
+	if( found )
+		return found->attr->code;
+	else
+		return -1;
+}
+
+static const fsd_attribute_t *
+pbsdrmaa_pbs_template_by_name( const fsd_template_t *self, const char *name )
+{
+	const struct pbs_attrib *found;
+	found = pbsdrmaa_pbs_attrib_lookup( name, strlen(name) );
+	if( found != NULL )
+	 {
+		fsd_assert( found->attr - pbsdrmaa_pbs_attributes == found->attr->code );
+		return found->attr;
+	 }
+	else
+		fsd_exc_raise_fmt(
+				FSD_ERRNO_INVALID_ARGUMENT,
+				"invalid PBS attribute name: %s", name
+				);
+}
+
+
+static const fsd_attribute_t *
+pbsdrmaa_pbs_template_by_code( const fsd_template_t *self, int code )
+{
+	if( 0 <= code  &&  code < PBSDRMAA_N_PBS_ATTRIBUTES )
+	 {
+		fsd_assert( pbsdrmaa_pbs_attributes[code].code == code );
+		return & pbsdrmaa_pbs_attributes[ code ];
+	 }
+	else
+		fsd_exc_raise_fmt(
+				FSD_ERRNO_INVALID_ARGUMENT,
+				"invalid PBS attribute code: %d", code
+				);
+}
+
+
+fsd_template_t *
+pbsdrmaa_pbs_template_new(void)
+{
+	return fsd_template_new(
+			pbsdrmaa_pbs_template_by_name,
+			pbsdrmaa_pbs_template_by_code,
+			PBSDRMAA_N_PBS_ATTRIBUTES
+			);
+}
+
+const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
+	{ "Execution_Time", PBSDRMAA_ATTR_EXECUTION_TIME, false },
+	{ "Checkpoint", PBSDRMAA_ATTR_CHECKPOINT, false },
+	{ "Error_Path", PBSDRMAA_ATTR_ERROR_PATH, false },
+	{ "group_list", PBSDRMAA_ATTR_GROUPS, false },
+	{ "Hold_Types", PBSDRMAA_ATTR_HOLD_TYPES, false },
+	{ "Join_Path", PBSDRMAA_ATTR_JOIN_FILES, false },
+	{ "Keep_Files", PBSDRMAA_ATTR_KEEP_FILES, false },
+	{ "Resource_List.cput", PBSDRMAA_ATTR_CPU_TIME_LIMIT, false },
+	{ "Resource_List.file", PBSDRMAA_ATTR_FILE_SIZE_LIMIT, false },
+	{ "Resource_List.nice", PBSDRMAA_ATTR_NICE, false },
+	{ "Resource_List.vmem", PBSDRMAA_ATTR_VMEM_LIMIT, false },
+	{ "Resource_List.pcput", PBSDRMAA_ATTR_SINGLE_CPU_TIME_LIMIT, false },
+	{ "Resource_List.pmem", PBSDRMAA_ATTR_SINGLE_RSS_LIMIT, false },
+	{ "Resource_List.pvmem", PBSDRMAA_ATTR_SINGLE_VMEM_LIMIT, false },
+	{ "Resource_List.walltime", PBSDRMAA_ATTR_WALLTIME_LIMIT, false },
+	{ "Resource_List.arch", PBSDRMAA_ATTR_ARCHITECTURE, false },
+	{ "Resource_List.host", PBSDRMAA_ATTR_HOST, false },
+	{ "Resource_List.nodes", PBSDRMAA_ATTR_NODES, false },
+	{ "Resource_List.software", PBSDRMAA_ATTR_SOFTWARE, false },
+	{ "Mail_Points", PBSDRMAA_ATTR_MAIL_POINTS, false },
+	{ "Output_Path", PBSDRMAA_ATTR_OUTPUT_PATH, false },
+	{ "Priority", PBSDRMAA_ATTR_PRIORITY, false },
+	{ "destination", PBSDRMAA_ATTR_DESITINATION, false },
+	{ "Rerunable", PBSDRMAA_ATTR_RERUNABLE, false },
+	{ "job_array_request", PBSDRMAA_ATTR_BULK_REQ, false },
+	{ "job_array_id", PBSDRMAA_ATTR_BULK_IDX, false },
+	{ "User_List", PBSDRMAA_ATTR_USERS, false },
+	{ "Variable_List", PBSDRMAA_ATTR_JOB_ENVIRONMENT, false },
+	{ "Account_Name", PBSDRMAA_ATTR_ACCOUNT_NAME, false },
+	{ "Mail_Users", PBSDRMAA_ATTR_EMAIL, false },
+	{ "Job_Name", PBSDRMAA_ATTR_JOB_NAME, false },
+	{ "Shell_Path_List", PBSDRMAA_ATTR_SHELL, false },
+	{ "depend", PBSDRMAA_ATTR_DEPEND, false },
+	{ "interactive", PBSDRMAA_ATTR_INTERACTIVE, false },
+	{ "stagein", PBSDRMAA_ATTR_STAGEIN, false },
+	{ "stageout", PBSDRMAA_ATTR_STAGEOUT, false },
+	{ "exec_host", PBSDRMAA_ATTR_EXECUTION_HOST, false },
+	{ "Job_Owner", PBSDRMAA_ATTR_JOB_OWNER, false },
+	{ "resources_used", PBSDRMAA_ATTR_RESOURCES_USED, false },
+	{ "job_state", PBSDRMAA_ATTR_JOB_STATE, false },
+	{ "queue", PBSDRMAA_ATTR_QUEUE, false },
+	{ "server", PBSDRMAA_ATTR_SERVER, false },
+	{ "comment", PBSDRMAA_ATTR_COMMENT, false },
+	{ "exit_status", PBSDRMAA_ATTR_EXIT_STATUS, false },
+	{ "start_time", PBSDRMAA_ATTR_START_TIME, false },
+	{ "x", PBSDRMAA_ATTR_EXTENSION, false },
+	{ "submit_args", PBSDRMAA_ATTR_SUBMIT_ARGS, false },
+	{ "mtime", PBSDRMAA_ATTR_MTIME, false },
+};
+
+/* vim: set ft=c: */
