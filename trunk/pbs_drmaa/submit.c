@@ -182,7 +182,8 @@ retry:
 			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED)
 			 {
 				pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self->session;
-				pbs_disconnect( pbsself->pbs_conn );
+				if (pbsself->pbs_conn >= 0 )
+					pbs_disconnect( pbsself->pbs_conn );
 				sleep(1);
 				pbsself->pbs_conn = pbs_connect( pbsself->super.contact );
 				if( pbsself->pbs_conn < 0 )

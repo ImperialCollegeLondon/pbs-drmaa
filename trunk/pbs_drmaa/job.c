@@ -200,7 +200,8 @@ retry:
 					break;
 				case PBSE_PROTOCOL:
 				case PBSE_EXPIRED:
-					pbs_disconnect( session->pbs_conn );
+					if ( session->pbs_conn >= 0 )
+						pbs_disconnect( session->pbs_conn );
 					sleep(1);
 					session->pbs_conn = pbs_connect( session->super.contact );
 					if( session->pbs_conn < 0 )
