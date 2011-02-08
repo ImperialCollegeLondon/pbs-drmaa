@@ -228,6 +228,11 @@ attributes.
 Release notes
 =============
 
+Changes in 1.0.5 release
+------------------------
+ * make drmaa tolerant to torque restarts
+ * now one can use '-lmem' in native specification attribute
+
 Changes in 1.0.4 release
 ------------------------
  * fix "mtime" date parsing ('triggered' mode)
