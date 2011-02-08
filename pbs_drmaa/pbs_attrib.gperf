@@ -59,6 +59,7 @@ Resource_List.cput, t(PBSDRMAA_ATTR_CPU_TIME_LIMIT)
 Resource_List.file, t(PBSDRMAA_ATTR_FILE_SIZE_LIMIT)
 Resource_List.nice, t(PBSDRMAA_ATTR_NICE)
 Resource_List.vmem, t(PBSDRMAA_ATTR_VMEM_LIMIT)
+Resource_List.mem, t(PBSDRMAA_ATTR_MEM_LIMIT)
 Resource_List.pcput, t(PBSDRMAA_ATTR_SINGLE_CPU_TIME_LIMIT)
 Resource_List.pmem, t(PBSDRMAA_ATTR_SINGLE_RSS_LIMIT)
 Resource_List.pvmem, t(PBSDRMAA_ATTR_SINGLE_VMEM_LIMIT)
@@ -173,6 +174,7 @@ const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
 	{ "Resource_List.file", PBSDRMAA_ATTR_FILE_SIZE_LIMIT, false },
 	{ "Resource_List.nice", PBSDRMAA_ATTR_NICE, false },
 	{ "Resource_List.vmem", PBSDRMAA_ATTR_VMEM_LIMIT, false },
+	{ "Resource_List.mem", PBSDRMAA_ATTR_MEM_LIMIT, false },
 	{ "Resource_List.pcput", PBSDRMAA_ATTR_SINGLE_CPU_TIME_LIMIT, false },
 	{ "Resource_List.pmem", PBSDRMAA_ATTR_SINGLE_RSS_LIMIT, false },
 	{ "Resource_List.pvmem", PBSDRMAA_ATTR_SINGLE_VMEM_LIMIT, false },

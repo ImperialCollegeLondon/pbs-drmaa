@@ -40,6 +40,7 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_CPU_TIME_LIMIT         "Resource_List.cput"
 #define PBSDRMAA_FILE_SIZE_LIMIT        "Resource_List.file"
 #define PBSDRMAA_NICE                   "Resource_List.nice"
+#define PBSDRMAA_MEM_LIMIT              "Resource_List.mem"
 #define PBSDRMAA_VMEM_LIMIT             "Resource_List.vmem"
 #define PBSDRMAA_SINGLE_CPU_TIME_LIMIT  "Resource_List.pcput"
 #define PBSDRMAA_SINGLE_RSS_LIMIT       "Resource_List.pmem"
@@ -93,6 +94,7 @@ typedef enum {
 	PBSDRMAA_ATTR_FILE_SIZE_LIMIT,
 	PBSDRMAA_ATTR_NICE,
 	PBSDRMAA_ATTR_VMEM_LIMIT,
+	PBSDRMAA_ATTR_MEM_LIMIT,
 	PBSDRMAA_ATTR_SINGLE_CPU_TIME_LIMIT,
 	PBSDRMAA_ATTR_SINGLE_RSS_LIMIT,
 	PBSDRMAA_ATTR_SINGLE_VMEM_LIMIT,
