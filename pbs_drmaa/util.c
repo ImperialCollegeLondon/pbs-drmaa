@@ -285,3 +285,58 @@ ssize_t fsd_getline(char * line,ssize_t size, int fd)
 	return n;
 } 
 
+ssize_t fsd_getline_buffered(char * line,char * buf, ssize_t size, int fd, int * idx, int * end_idx, int * line_idx)
+{
+	int i = -1;
+	int rc = -1;
+
+	memset(line,0,size);
+	
+start:
+	/* idx - start of data to parse (in buffer)
+	   end_idx - end of data read from log (in buffer)
+	   line_idx - place to write data in output line */
+	if(*idx < *end_idx)
+	{
+		/* take line from buffer */
+		for(i = *idx; i<= *end_idx;i++)
+		{		
+			if(buf[i] == '\n')
+			{
+				int tmp = i - *idx;
+				strncpy(line + *line_idx,buf + *idx,tmp);				
+				*idx = i + 1;
+			
+				tmp+= *line_idx;
+				*line_idx = 0;
+				
+				return tmp;
+			}
+		}
+		
+		/* there was no '\n' so next part of log needs to be read. save lines beginning */
+		if(*line_idx + i - *idx > size )
+			fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"Line longer than %d unsupported",size);
+		
+		strncpy(line + *line_idx,buf + *idx,i - *idx);
+		*line_idx += i - *idx;
+		*idx = 0;
+		*end_idx = 0;
+		goto start;
+	}
+	else
+	{		
+		/* read log */
+		if((rc = read(fd,buf,size)) > 0)
+		{		
+			*end_idx = rc - 1;
+			*idx = 0;
+			goto start;
+		}
+		else if (rc == 0) 
+			return 0;
+		else
+			return -1;
+	}
+} 
+
