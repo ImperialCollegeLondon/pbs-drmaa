@@ -42,5 +42,8 @@ void pbsdrmaa_dump_attrl(
 char *
 pbsdrmaa_write_tmpfile( const char *content, size_t len );
 
+ssize_t
+fsd_getline(char * line,ssize_t size, int fd);
+
 #endif /* __PBS_DRMAA__UTIL_H */
 

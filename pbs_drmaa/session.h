@@ -78,7 +78,7 @@ struct pbsdrmaa_session_s {
 	/*
 	 * Time we checked log file initial size - used by wait_thread which reads log files
  	 */
-	struct tm log_file_initial_time;
+	time_t log_file_initial_time;
 };
 
 #endif /* __PBS_DRMAA__SESSION_H */

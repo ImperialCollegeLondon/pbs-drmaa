@@ -257,4 +257,31 @@ pbsdrmaa_write_tmpfile( const char *content, size_t len )
 	return name;
 }
 
+ssize_t fsd_getline(char * line,ssize_t size, int fd)
+{
+	char buf;
+	char * ptr = NULL;
+	ssize_t n = 0, rc;
+	ptr = line;
+	for(n = 1; n< size; n++)
+	{		
+		if( (rc = read(fd,&buf,1 )) == 1) {
+			*ptr++ = buf;
+			if(buf == '\n')
+			{
+				break;
+			}
+		}
+		else if (rc == 0) {
+			if (n == 1)
+				return 0;
+			else
+				break;
+		}		
+		else
+			return -1; 
+	}
+
+	return n;
+} 
 
