@@ -40,6 +40,7 @@
 #include <drmaa_utils/datetime.h>
 
 #include <pbs_drmaa/job.h>
+#include <pbs_drmaa/log_reader.h>
 #include <pbs_drmaa/session.h>
 #include <pbs_drmaa/submit.h>
 #include <pbs_drmaa/util.h>
@@ -217,22 +218,22 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 		 {
 			struct stat statbuf;
 			char * volatile log_path;
-			time_t t;
-
+			struct tm tm;
+			
 			pbsself->pbs_home = pbs_home->val.string;
 			fsd_log_debug(("pbs_home: %s",pbsself->pbs_home));
 			pbsself->super_wait_thread = pbsself->super.wait_thread;
 			pbsself->super.wait_thread = pbsdrmaa_session_wait_thread;		
 			pbsself->wait_thread_log = true;
 	
-			time(&t);	
-			localtime_r(&t,&pbsself->log_file_initial_time);
+			time(&pbsself->log_file_initial_time);	
+			localtime_r(&pbsself->log_file_initial_time,&tm);
 
 			if((log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d",
     		  		pbsself->pbs_home,	 
-  		    		pbsself->log_file_initial_time.tm_year + 1900,
-   		    		pbsself->log_file_initial_time.tm_mon + 1,
-   		   		pbsself->log_file_initial_time.tm_mday)) == NULL) {
+  		    		tm.tm_year + 1900,
+   		    		tm.tm_mon + 1,
+					tm.tm_mday)) == NULL) {
 				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"WT - Memory allocation wasn't possible");
 			}
 
@@ -515,473 +516,24 @@ pbsdrmaa_session_do_drm_keeps_completed_jobs( pbsdrmaa_session_t *self )
 	return false;
 }
 
-
-enum field
-  {
-  FLD_DATE = 0,
-  FLD_EVENT = 1,
-  FLD_OBJ = 2,
-  FLD_TYPE = 3,
-  FLD_ID = 4,
-  FLD_MSG = 5
-  };
-
-enum field_msg
-  {
-  FLD_MSG_EXIT_STATUS = 0,
-  FLD_MSG_CPUT = 1,
-  FLD_MSG_MEM = 2,
-  FLD_MSG_VMEM = 3,
-  FLD_MSG_WALLTIME = 4
-  };
-
-#define FLD_MSG_STATUS "0010"
-#define FLD_MSG_STATE "0008"
-#define FLD_MSG_LOG "0002"
-
-ssize_t fsd_getline(char * line,ssize_t size, int fd)
-{
-	char buf;
-	char * ptr = NULL;
-	ssize_t n = 0, rc;
-	ptr = line;
-	for(n = 1; n< size; n++)
-	{		
-		if( (rc = read(fd,&buf,1 )) == 1) {
-			*ptr++ = buf;
-			if(buf == '\n')
-			{
-				break;
-			}
-		}
-		else if (rc == 0) {
-			if (n == 1)
-				return 0;
-			else
-				break;
-		}		
-		else
-			return -1; 
-	}
-
-	return n;
-} 
-
 void *
 pbsdrmaa_session_wait_thread( fsd_drmaa_session_t *self )
 {
-	pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*) self;
-	fsd_job_t *volatile job = NULL;
-	pbsdrmaa_job_t *volatile pbsjob = NULL;
-	char job_id[256] = "";
-	char event[256] = "";
-	time_t t;
-	struct tm tm;
-
-	tm = pbsself->log_file_initial_time;
-
-	fsd_log_enter(( "" ));
-	fsd_mutex_lock( &self->mutex );
-	TRY
-	 {	
-		char * volatile log_path = NULL;
-		char buffer[4096] = "";
-		bool volatile date_changed = true;
-		int  volatile fd = -1;
-		bool first_open = true;
-
-		fsd_log_debug(("WT - reading log files"));
-
-		while( self->wait_thread_run_flag )
-		TRY
-		 {			
-			if(date_changed)
-			{
-				int num_tries = 0;
-				
-				time(&t);	
-				localtime_r(&t,&tm);
-			
-				#define DRMAA_WAIT_THREAD_MAX_TRIES (12)
-				/* generate new date, close file and open new */
-				if((log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d",
-       					pbsself->pbs_home,	 
-       					tm.tm_year + 1900,
-       					tm.tm_mon + 1,
-      					tm.tm_mday)) == NULL) {
-					fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"WT - Memory allocation wasn't possible");
-				}
-
-				if(fd != -1)
-					close(fd);
-
-				fsd_log_debug(("Log file: %s",log_path));
-				
-		retry:
-				if((fd = open(log_path,O_RDONLY) ) == -1 && num_tries > DRMAA_WAIT_THREAD_MAX_TRIES )
-				{
-					fsd_log_error(("Can't open log file. Verify pbs_home. Running standard wait_thread."));
-					fsd_log_error(("Remember that without keep_completed set standard wait_thread won't run correctly"));
-					/*pbsself->super.enable_wait_thread = false;*/ /* run not wait_thread */
-					pbsself->wait_thread_log = false;
-					pbsself->super.wait_thread = pbsself->super_wait_thread;
-					pbsself->super.wait_thread(self);
-				} else if ( fd == -1 ) {
-					fsd_log_warning(("Can't open log file: %s. Retries count: %d", log_path, num_tries));
-					num_tries++;
-					sleep(5);
-					goto retry;
-				}
-
-				fsd_free(log_path);
-
-				fsd_log_debug(("Log file opened"));
-
-				if(first_open) {
-					fsd_log_debug(("Log file lseek"));
-					if(lseek(fd,pbsself->log_file_initial_size,SEEK_SET) == (off_t) -1) {
-						char errbuf[256] = "InternalError";
-						(void)strerror_r(errno, errbuf, 256);
-						fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"lseek error: %s",errbuf);
-					}
-					first_open = false;
-				}
-
-				date_changed = false;
-			}				
-			
-			while ((fsd_getline(buffer,sizeof(buffer),fd)) > 0) 			
-			{
-				const char *volatile ptr = buffer;
-  				char field[256] = "";
-				int volatile field_n = 0;
- 				int n;
-
-				bool volatile job_id_match = false;
-				bool volatile event_match = false;
-				bool volatile log_event = false;
-				bool volatile log_match = false;
-  				char *  temp_date = NULL;
-				
-
-				struct batch_status status;
-				status.next = NULL;
-
-				if( strlcpy(job_id,"",sizeof(job_id)) > sizeof(job_id) ) {
-					fsd_log_error(("WT - strlcpy error"));
-				}
-				if( strlcpy(event,"",sizeof(event)) > sizeof(event) ) {
-					fsd_log_error(("WT - strlcpy error"));
-				}
-				while ( sscanf(ptr, "%255[^;]%n", field, &n) == 1 ) /* divide current line into fields */
-				{
-					if(field_n == FLD_DATE)
-					{
-						temp_date = fsd_strdup(field);
-					}
-					else if(field_n == FLD_EVENT && (strcmp(field,FLD_MSG_STATUS) == 0 || 
-						     		    strcmp(field,FLD_MSG_STATE) == 0 ))
-					{
-						/* event described by log line*/
-						if(strlcpy(event, field,sizeof(event)) > sizeof(event)) {
-							fsd_log_error(("WT - strlcpy error"));
-						}
-						event_match = true;									
-					}
-					else if(event_match && field_n == FLD_ID)
-					{	
-						TRY
-						{	
-							job = self->get_job( self, field );
-							pbsjob = (pbsdrmaa_job_t*) job;
-
-							if( job )
-							{
-								if(strlcpy(job_id, field,sizeof(job_id)) > sizeof(job_id)) {
-									fsd_log_error(("WT - strlcpy error"));
-								}
-								fsd_log_debug(("WT - job_id: %s",job_id));
-								status.name = fsd_strdup(job_id);
-								job_id_match = true; /* job_id is in drmaa */
-							}
-							else 
-							{
-								fsd_log_debug(("WT - Unknown job: %s", field));
-							}
-						}
-						END_TRY	
-					}
-					else if(job_id_match && field_n == FLD_MSG)
-					{						
-						/* parse msg - depends on FLD_EVENT*/
-						struct attrl struct_resource_cput,struct_resource_mem,struct_resource_vmem,
-							struct_resource_walltime, struct_status, struct_state, struct_start_time,struct_mtime, struct_queue, struct_account_name;	
-						
-						bool state_running = false;
-
-						struct_status.name = NULL;
-						struct_status.value = NULL;
-						struct_status.next = NULL;
-						struct_status.resource = NULL;
-
-						struct_state.name = NULL;
-						struct_state.value = NULL;
-						struct_state.next = NULL;
-						struct_state.resource = NULL;
-
-						struct_resource_cput.name = NULL;
-						struct_resource_cput.value = NULL;
-						struct_resource_cput.next = NULL;
-						struct_resource_cput.resource = NULL;
-
-						struct_resource_mem.name = NULL;
-						struct_resource_mem.value = NULL;
-						struct_resource_mem.next = NULL;
-						struct_resource_mem.resource = NULL;
-
-						struct_resource_vmem.name = NULL;
-						struct_resource_vmem.value = NULL;
-						struct_resource_vmem.next = NULL;
-						struct_resource_vmem.resource = NULL;
-
-						struct_resource_walltime.name = NULL;
-						struct_resource_walltime.value = NULL;
-						struct_resource_walltime.next = NULL;
-						struct_resource_walltime.resource = NULL;
-
-						struct_start_time.name = NULL;
-						struct_start_time.value = NULL;
-						struct_start_time.next = NULL;
-						struct_start_time.resource = NULL;
-
-						struct_mtime.name = NULL;
-						struct_mtime.value = NULL;
-						struct_mtime.next = NULL;
-						struct_mtime.resource = NULL;
-
-						struct_queue.name = NULL;
-						struct_queue.value = NULL;
-						struct_queue.next = NULL;
-						struct_queue.resource = NULL;
-
-						struct_account_name.name = NULL;
-						struct_account_name.value = NULL;
-						struct_account_name.next = NULL;
-						struct_account_name.resource = NULL;
-
-								
-						if (strcmp(event,FLD_MSG_STATE) == 0) 
-						{
-							/* job run, modified, queued etc */
-							int n = 0;
-							status.attribs = &struct_state;
-							struct_state.next = NULL;
-							struct_state.name = "job_state";
-							if(field[0] == 'J') /* Job Queued, Job Modified, Job Run*/
-							{
-								n = 4;								
-							}		
-							if(field[4] == 'M') {
-								struct tm temp_time_tm;
-								memset(&temp_time_tm, 0, sizeof(temp_time_tm));
-								temp_time_tm.tm_isdst = -1;
-
-								if (strptime(temp_date, "%m/%d/%Y %H:%M:%S", &temp_time_tm) == NULL) 
-								 {
-								 	fsd_log_error(("failed to parse mtime: %s", temp_date));
-								 }
-								else
-								 {
-									time_t temp_time = mktime(&temp_time_tm);
-									status.attribs = &struct_mtime; 
-									struct_mtime.name = "mtime";
-									struct_mtime.next = NULL;
-									struct_mtime.value = fsd_asprintf("%lu",temp_time);
-								 }
-							}		
-							/* != Job deleted and Job to be deleted*/
-							#ifdef PBS_PROFESSIONAL
-							else if	(field[4] != 't' && field[10] != 'd') {
-							#else	 	
-							else if(field[4] != 'd') {
-							#endif 
-
-								if ((struct_state.value = fsd_asprintf("%c",field[n]) ) == NULL ) { /* 4 first letter of state */
-									fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"WT - Memory allocation wasn't possible");
-								}
-								if(struct_state.value[0] == 'R'){
-									state_running = true;
-								}
-							}
-							else { /* job terminated - pbs drmaa detects failed as completed with exit_status !=0, aborted with status -1*/
-								struct_status.name = "exit_status";
-								struct_status.value = fsd_strdup("-1");
-								struct_status.next = NULL;
-								struct_state.next = &struct_status;
-								struct_state.value = fsd_strdup("C");								
-							}
-						} 						     
-						else /*if (strcmp(event,FLD_MSG_STATUS) == 0 )*/
-						{
-							/* exit status and rusage */
-							const char *ptr2 = field;
-							char  msg[ 256 ] = "";
-							int n2;
-							int msg_field_n = 0;
-							
-							struct_resource_cput.name = "resources_used";
-							struct_resource_mem.name = "resources_used";
-							struct_resource_vmem.name = "resources_used";
-							struct_resource_walltime.name = "resources_used";
-							struct_status.name = "exit_status";
-							struct_state.name = "job_state";
-				
-							status.attribs = &struct_resource_cput;
-							struct_resource_cput.next = &struct_resource_mem;
-							struct_resource_mem.next = &struct_resource_vmem;
-							struct_resource_vmem.next = &struct_resource_walltime;
-							struct_resource_walltime.next =  &struct_status;
-							struct_status.next = &struct_state;
-							struct_state.next = NULL;
-
-							while ( sscanf(ptr2, "%255[^ ]%n", msg, &n2) == 1 )
-							 {						
-								switch(msg_field_n) 
-								{
-									case FLD_MSG_EXIT_STATUS:
-										struct_status.value = fsd_strdup(strchr(msg,'=')+1);
-										break;
-
-									case FLD_MSG_CPUT:
-										struct_resource_cput.resource = "cput";
-										struct_resource_cput.value = fsd_strdup(strchr(msg,'=')+1);
-										break;
-
-									case FLD_MSG_MEM:
-										struct_resource_mem.resource = "mem";
-										struct_resource_mem.value  = fsd_strdup(strchr(msg,'=')+1);
-										break;
-
-									case FLD_MSG_VMEM:
-										struct_resource_vmem.resource = "vmem";
-										struct_resource_vmem.value  = fsd_strdup(strchr(msg,'=')+1);
-										break; 
-
-									case FLD_MSG_WALLTIME:
-										struct_resource_walltime.resource = "walltime";
-										struct_resource_walltime.value  = fsd_strdup(strchr(msg,'=')+1);
-										break; 
-								}
-							      
-								ptr2 += n2; 
-								msg_field_n++;
-								if ( *ptr2 != ' ' )
-							      	 {
-									 break; 
-							  	 }
-							 	++ptr2;						
-							 }
-							struct_state.value = fsd_strdup("C");	/* we got exit_status so we say that it has completed */
-						}						
-
-						if ( state_running )
-						 {
-							fsd_log_debug(("WT - forcing update of job: %s", job->job_id ));
-							job->update_status( job );
-						 }
-						else
-						 {
-							fsd_log_debug(("WT - updating job: %s", job->job_id ));
-							pbsjob->update( job, &status );
-						 }
-
-				
-						fsd_cond_broadcast( &job->status_cond);
-						fsd_cond_broadcast( &self->wait_condition );
-
-						if ( job )
-							job->release( job );
+	pbsdrmaa_log_reader_t *log_reader = NULL;
 	
-						fsd_free(struct_resource_cput.value);
-						fsd_free(struct_resource_mem.value);
-						fsd_free(struct_resource_vmem.value);
-						fsd_free(struct_resource_walltime.value);
-						fsd_free(struct_status.value);
-						fsd_free(struct_state.value);
-						fsd_free(struct_start_time.value);
-						fsd_free(struct_mtime.value);
-						fsd_free(struct_queue.value);
-						fsd_free(struct_account_name.value);
-
-						if ( status.name!=NULL ) 
-							fsd_free(status.name);
-					}
-					else if(field_n == FLD_EVENT && strcmp(field,FLD_MSG_LOG) == 0)
-					{
-						log_event = true;					
-					}
-					else if (log_event && field_n == FLD_ID && strcmp(field,"Log") == 0 )
-					{
-						log_match = true;
-						log_event = false;
-					}
-					else if( log_match && field_n == FLD_MSG && 
-						field[0] == 'L' && 
-						field[1] == 'o' && 
-						field[2] == 'g' && 
-						field[3] == ' ' && 
-						field[4] == 'c' && 
-						field[5] == 'l' && 
-						field[6] == 'o' && 
-						field[7] == 's' && 
-						field[8] == 'e' && 
-						field[9] == 'd' )  /* last field in the file - strange bahaviour*/
-					{
-						fsd_log_debug(("WT - Date changed. Closing log file"));
-						date_changed = true;
-						log_match = false;
-					}
-					
-					ptr += n; 
-					if ( *ptr != ';' )
-					{
-						break; /* end of line */
-					}
-					field_n++;
-					++ptr;
-				}		
-
-				if( strlcpy(buffer,"",sizeof(buffer)) > sizeof(buffer) ) {
-					fsd_log_error(("WT - strlcpy error"));
-				}
-
-				fsd_free(temp_date);			
-			}
-
-			fsd_mutex_unlock( &self->mutex );	
-			usleep(1000000);
-			fsd_mutex_lock( &self->mutex );
-		 }
-		EXCEPT_DEFAULT
-		 {
-			const fsd_exc_t *e = fsd_exc_get();
-
-			fsd_log_error(( "wait thread: <%d:%s>", e->code(e), e->message(e) ));
-			fsd_exc_reraise();
-		 }
-		END_TRY
-
-		if(fd != -1)
-			close(fd);
-		fsd_log_debug(("Log file closed"));
-	 }
+	fsd_log_enter(( "" ));
+	
+	TRY
+	{	
+		log_reader = pbsdrmaa_log_reader_new( self, NULL);
+		log_reader->read_log( log_reader );
+	}
 	FINALLY
-	 {
-	 	fsd_log_debug(("WT - Terminated."));	
-	 	fsd_mutex_unlock( &self->mutex );
-	 }
+	{
+		pbsdrmaa_log_reader_destroy( log_reader );
+	}
 	END_TRY
-
+	
 	fsd_log_return(( " =NULL" ));
 	return NULL;
 }

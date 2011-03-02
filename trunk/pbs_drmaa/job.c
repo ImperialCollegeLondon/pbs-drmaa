@@ -32,6 +32,7 @@
 #include <pbs_ifl.h>
 
 #include <pbs_drmaa/job.h>
+#include <pbs_drmaa/log_reader.h>
 #include <pbs_drmaa/pbs_attrib.h>
 #include <pbs_drmaa/session.h>
 #include <pbs_drmaa/util.h>
@@ -53,6 +54,12 @@ pbsdrmaa_job_update_status( fsd_job_t *self );
 
 static void
 pbsdrmaa_job_on_missing( fsd_job_t *self );
+
+void
+pbsdrmaa_job_on_missing_standard( fsd_job_t *self );
+
+void
+pbsdrmaa_job_on_missing_log_based( fsd_job_t *self );
 
 static void
 pbsdrmaa_job_update( fsd_job_t *self, struct batch_status* );
@@ -226,7 +233,7 @@ retry:
 		 {
 			((pbsdrmaa_job_t*)self)->update( self, status );
 		 }
-		else
+		else if( self->state < DRMAA_PS_DONE )
 			self->on_missing( self );
 	 }
 	FINALLY
@@ -397,24 +404,33 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 	 }
 }
 
-
 void
 pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
+	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
+	
+	if( pbssession->pbs_home == NULL )
+		pbsdrmaa_job_on_missing_standard( self );	
+	else
+		pbsdrmaa_job_on_missing_log_based( self );	
+}
+
+void
+pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
+{
 	fsd_drmaa_session_t *session = self->session;
-	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)session;
-	if( !pbssession->wait_thread_log){	
+	
 	unsigned missing_mask = 0;
 
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
 	fsd_log_warning(( "self %s missing from DRM queue", self->job_id ));
 
 	switch( session->missing_jobs )
-	 {
+	{
 		case FSD_REVEAL_MISSING_JOBS:         missing_mask = 0;     break;
 		case FSD_IGNORE_MISSING_JOBS:         missing_mask = 0x73;  break;
 		case FSD_IGNORE_QUEUED_MISSING_JOBS:  missing_mask = 0x13;  break;
-	 }
+	}
 	fsd_log_debug(( "last job_ps: %s (0x%02x); mask: 0x%02x",
 				drmaa_job_ps_to_str(self->state), self->state, missing_mask ));
 
@@ -426,25 +442,47 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 				);
 
 	if( (self->flags & FSD_JOB_TERMINATED_MASK) == 0 )
-	 {
+	{
 		self->flags &= FSD_JOB_TERMINATED_MASK;
 		self->flags |= FSD_JOB_TERMINATED;
-	 }
+	}
 
 	if( (self->flags & FSD_JOB_ABORTED) == 0
 			&&  session->missing_jobs == FSD_IGNORE_MISSING_JOBS )
-	 { /* assume everthing was ok */
+	{ /* assume everthing was ok */
 		self->state = DRMAA_PS_DONE;
 		self->exit_status = 0;
-	 }
+	}
 	else
-	 { /* job aborted */
+	{ /* job aborted */
 		self->state = DRMAA_PS_FAILED;
 		self->exit_status = -1;
-	 }
+	}
 
 	fsd_log_return(( "; job_ps=%s, exit_status=%d",
 				drmaa_job_ps_to_str(self->state), self->exit_status ));
-	}
 }
 
+void
+pbsdrmaa_job_on_missing_log_based( fsd_job_t *self )
+{
+	fsd_drmaa_session_t *session = self->session;
+	pbsdrmaa_log_reader_t *log_reader = NULL;
+	
+	fsd_log_enter(( "({job_id=%s})", self->job_id ));
+	fsd_log_warning(( "self %s missing from DRM queue", self->job_id ));
+	
+	TRY
+	{	
+		log_reader = pbsdrmaa_log_reader_new( session, self);
+		log_reader->read_log( log_reader ); 
+	}
+	FINALLY
+	{
+		pbsdrmaa_log_reader_destroy( log_reader );
+	}
+	END_TRY
+
+	fsd_log_return(( "; job_ps=%s, exit_status=%d",
+				drmaa_job_ps_to_str(self->state), self->exit_status ));	
+}

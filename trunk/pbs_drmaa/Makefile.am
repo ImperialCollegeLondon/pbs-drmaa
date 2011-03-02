@@ -29,7 +29,8 @@ libdrmaa_la_SOURCES = \
  pbs_attrib.gperf pbs_attrib.h \
  session.c session.h \
  submit.c submit.h \
- util.c util.h
+ util.c util.h \
+ log_reader.c log_reader.h 
 BUILT_SOURCES       = pbs_attrib.c
 EXTRA_DIST          = pbs_attrib.c
 dist_sysconf_DATA   = pbs_drmaa.conf.example
