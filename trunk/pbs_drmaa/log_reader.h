@@ -43,10 +43,11 @@ struct pbsdrmaa_log_reader_s {
 	read_log) ( pbsdrmaa_log_reader_t * self );
 	
 	void (*
-	chose_file) ( pbsdrmaa_log_reader_t * self );
+	select_file) ( pbsdrmaa_log_reader_t * self );
 	
+	/* line - read line, buffer - keeps read but not returned lines, idx, end_idx and line_idx values needed to be kept outside the function */
 	ssize_t (*
-	read_line) ( pbsdrmaa_log_reader_t * self , char * buffer , ssize_t size );
+	read_line) ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx );
 	
 	/* specifies if function should run */
 	bool run_flag;

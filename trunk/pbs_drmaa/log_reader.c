@@ -52,16 +52,16 @@ static void
 pbsdrmaa_read_log();
 
 static void
-pbsdrmaa_chose_file_wait_thread ( pbsdrmaa_log_reader_t * self);
+pbsdrmaa_select_file_wait_thread ( pbsdrmaa_log_reader_t * self);
 
 static ssize_t
-pbsdrmaa_read_line_wait_thread ( pbsdrmaa_log_reader_t * self, char * buffer, ssize_t size );
+pbsdrmaa_read_line_wait_thread ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx );
 
 static void
-pbsdrmaa_chose_file_job_on_missing ( pbsdrmaa_log_reader_t * self );
+pbsdrmaa_select_file_job_on_missing ( pbsdrmaa_log_reader_t * self );
 
 static ssize_t
-pbsdrmaa_read_line_job_on_missing ( pbsdrmaa_log_reader_t * self, char * buffer, ssize_t size );
+pbsdrmaa_read_line_job_on_missing ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx );
 
 int 
 fsd_job_id_cmp(const char *s1, const char *s2);
@@ -86,14 +86,14 @@ pbsdrmaa_log_reader_new ( fsd_drmaa_session_t *session, fsd_job_t *job )
 		{
 			self->job = job;
 			self->name = "Job_on_missing";
-			self->chose_file = pbsdrmaa_chose_file_job_on_missing;
+			self->select_file = pbsdrmaa_select_file_job_on_missing;
 			self->read_line = pbsdrmaa_read_line_job_on_missing;
 		}
 		else /* wait thread */
 		{
 			self->job = NULL;
 			self->name = "WT";
-			self->chose_file = pbsdrmaa_chose_file_wait_thread;
+			self->select_file = pbsdrmaa_select_file_wait_thread;
 			self->read_line = pbsdrmaa_read_line_wait_thread;
 		}		
 		self->read_log = pbsdrmaa_read_log;	
@@ -178,26 +178,27 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 	
 	if(self->job == NULL)
 		fsd_mutex_lock( &self->session->mutex );
-	/*else
-		fsd_mutex_lock( &self->job->mutex );*/
+
 	TRY
 	{		
 		while( self->run_flag )
 		TRY
 		{
-			char buffer[4096] = "";		
+			char line[4096] = "";
+			char buffer[4096] = "";
+			int idx = 0, end_idx = 0, line_idx = 0;
 			
-			self->chose_file(self);
+			self->select_file(self);
 
-			while ((self->read_line(self, buffer, sizeof(buffer))) > 0) 			
+			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0) 			
 			{
-				const char *volatile ptr = buffer;
+				const char *volatile ptr = line;
   				char field[256] = "";
 				char job_id[256] = "";
 				char event[256] = "";
 				int volatile field_n = 0;
  				int n;
-
+				
 				bool volatile job_id_match = false;
 				bool volatile event_match = false;
 				bool volatile log_event = false;
@@ -285,55 +286,16 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						
 						bool state_running = false;
 
-						struct_status.name = NULL;
-						struct_status.value = NULL;
-						struct_status.next = NULL;
-						struct_status.resource = NULL;
-
-						struct_state.name = NULL;
-						struct_state.value = NULL;
-						struct_state.next = NULL;
-						struct_state.resource = NULL;
-
-						struct_resource_cput.name = NULL;
-						struct_resource_cput.value = NULL;
-						struct_resource_cput.next = NULL;
-						struct_resource_cput.resource = NULL;
-
-						struct_resource_mem.name = NULL;
-						struct_resource_mem.value = NULL;
-						struct_resource_mem.next = NULL;
-						struct_resource_mem.resource = NULL;
-
-						struct_resource_vmem.name = NULL;
-						struct_resource_vmem.value = NULL;
-						struct_resource_vmem.next = NULL;
-						struct_resource_vmem.resource = NULL;
-
-						struct_resource_walltime.name = NULL;
-						struct_resource_walltime.value = NULL;
-						struct_resource_walltime.next = NULL;
-						struct_resource_walltime.resource = NULL;
-
-						struct_start_time.name = NULL;
-						struct_start_time.value = NULL;
-						struct_start_time.next = NULL;
-						struct_start_time.resource = NULL;
-
-						struct_mtime.name = NULL;
-						struct_mtime.value = NULL;
-						struct_mtime.next = NULL;
-						struct_mtime.resource = NULL;
-
-						struct_queue.name = NULL;
-						struct_queue.value = NULL;
-						struct_queue.next = NULL;
-						struct_queue.resource = NULL;
-
-						struct_account_name.name = NULL;
-						struct_account_name.value = NULL;
-						struct_account_name.next = NULL;
-						struct_account_name.resource = NULL;
+						memset(&struct_status,0,sizeof(struct attrl)); /**/
+						memset(&struct_state,0,sizeof(struct attrl));
+						memset(&struct_resource_cput,0,sizeof(struct attrl));
+						memset(&struct_resource_mem,0,sizeof(struct attrl));
+						memset(&struct_resource_vmem,0,sizeof(struct attrl));
+						memset(&struct_resource_walltime,0,sizeof(struct attrl));
+						memset(&struct_start_time,0,sizeof(struct attrl));
+						memset(&struct_mtime,0,sizeof(struct attrl));
+						memset(&struct_queue,0,sizeof(struct attrl));
+						memset(&struct_account_name,0,sizeof(struct attrl));
 								
 						if (strcmp(event,FLD_MSG_STATE) == 0) 
 						{
@@ -506,17 +468,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						log_match = true;
 						log_event = false;
 					}
-					else if( self->job == NULL && log_match && field_n == FLD_MSG && 
-						field[0] == 'L' && 
-						field[1] == 'o' && 
-						field[2] == 'g' && 
-						field[3] == ' ' && 
-						field[4] == 'c' && 
-						field[5] == 'l' && 
-						field[6] == 'o' && 
-						field[7] == 's' && 
-						field[8] == 'e' && 
-						field[9] == 'd' )  /* last field in the file - strange bahaviour*/
+					else if( self->job == NULL && log_match && field_n == FLD_MSG && strncmp(field,"Log closed",10) == 0) 
 					{
 						fsd_log_debug(("%s - Date changed. Closing log file",self->name));
 						self->date_changed = true;
@@ -531,10 +483,6 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					field_n++;
 					++ptr;
 				}		
-
-				if( strlcpy(buffer,"",sizeof(buffer)) > sizeof(buffer) ) {
-					fsd_log_error(("%s - strlcpy error",self->name));
-				}
 
 				fsd_free(temp_date);			
 			} /* end of while getline loop */			
@@ -576,7 +524,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 }
 
 void
-pbsdrmaa_chose_file_wait_thread ( pbsdrmaa_log_reader_t * self )
+pbsdrmaa_select_file_wait_thread ( pbsdrmaa_log_reader_t * self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*) self->session;
 	
@@ -647,9 +595,9 @@ pbsdrmaa_chose_file_wait_thread ( pbsdrmaa_log_reader_t * self )
 }
 
 ssize_t
-pbsdrmaa_read_line_wait_thread ( pbsdrmaa_log_reader_t * self, char * buffer, ssize_t size )
+pbsdrmaa_read_line_wait_thread ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx )
 {
-	return fsd_getline(buffer,size,self->fd);
+	return fsd_getline_buffered(line,buffer,size,self->fd,idx,end_idx,line_idx);
 }
 
 /* reverse date compare*/
@@ -662,7 +610,7 @@ pbsdrmaa_date_compare(const void *a, const void *b)
 }
 
 void
-pbsdrmaa_chose_file_job_on_missing( pbsdrmaa_log_reader_t * self )
+pbsdrmaa_select_file_job_on_missing( pbsdrmaa_log_reader_t * self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*) self->session;	
 	
@@ -768,9 +716,9 @@ retry:
 }
 
 ssize_t
-pbsdrmaa_read_line_job_on_missing ( pbsdrmaa_log_reader_t * self, char * buffer, ssize_t size )
+pbsdrmaa_read_line_job_on_missing ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx )
 {
-	int n = fsd_getline(buffer,size,self->fd);
+	int n = fsd_getline_buffered(line,buffer,size,self->fd, idx, end_idx, line_idx);
 	
 	if(n >= 0)
 		self->log_file_read_size += n;
@@ -788,13 +736,13 @@ fsd_job_id_cmp(const char *s1, const char *s2) /* maybe move to drmaa_utils? */
 	int job2;
 	char *rest = NULL;
 	char *token = NULL;
-	char *ptr = strdup(s1);
+	char *ptr = fsd_strdup(s1);
 	token = strtok_r(ptr, ".", &rest);
 	job1 = atoi(token);
 	
 	fsd_free(token);
 	
-	ptr = strdup(s2);
+	ptr = fsd_strdup(s2);
 	token = strtok_r(ptr,".",&rest);
 	job2 = atoi(token);
 	

@@ -41,5 +41,8 @@ struct pbsdrmaa_job_s {
 	update)( fsd_job_t *self, struct batch_status *status );
 };
 
+void
+pbsdrmaa_job_on_missing_standard( fsd_job_t *self );
+
 #endif /* __PBS_DRMAA__JOB_H */
 
