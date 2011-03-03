@@ -192,7 +192,7 @@ retry:
 #else
 		status = pbs_statjob( session->pbs_conn, self->job_id, session->status_attrl, NULL );
 #endif
-		fsd_log_debug(( "pbs_statjob(fd=%d, job_id=%s, attribs={...}) =%p",
+		fsd_log_info(( "pbs_statjob(fd=%d, job_id=%s, attribs={...}) =%p",
 				 session->pbs_conn, self->job_id, (void*)status ));
 		if( status == NULL )
 		 {
