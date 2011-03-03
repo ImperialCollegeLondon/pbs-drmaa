@@ -282,7 +282,7 @@ retry:
 #else
 		status = pbs_statjob( pbsself->pbs_conn, NULL, pbsself->status_attrl, NULL );
 #endif
-		fsd_log_debug(( "pbs_statjob( fd=%d, job_id=NULL, attribs={...} ) =%p",
+		fsd_log_info(( "pbs_statjob( fd=%d, job_id=NULL, attribs={...} ) =%p",
 				 pbsself->pbs_conn, (void*)status ));
 		if( status == NULL  &&  pbs_errno != 0 )
 		 {
