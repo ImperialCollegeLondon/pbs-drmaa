@@ -177,6 +177,9 @@ retry:
 		job_id = pbs_submit( ((pbsdrmaa_session_t*)self->session)->pbs_conn,
 				(struct attropl*)pbs_attr, self->script_filename,
 				self->destination_queue, NULL );
+
+		fsd_log_info(("pbs_submit() =%s", job_id));
+
 		if( job_id == NULL )
 		{
 			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED)

@@ -120,7 +120,7 @@ pbsdrmaa_session_new( const char *contact )
 		self->status_attrl = pbsdrmaa_create_status_attrl();
 
 		self->pbs_conn = pbs_connect( self->super.contact );
-		fsd_log_debug(( "pbs_connect(%s) =%d", self->super.contact,
+		fsd_log_info(( "pbs_connect(%s) =%d", self->super.contact,
 					self->pbs_conn ));
 		if( self->pbs_conn < 0 )
 			pbsdrmaa_exc_raise_pbs( "pbs_connect" );

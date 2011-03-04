@@ -122,10 +122,6 @@ ACX_PTHREAD([CFLAGS="$CFLAGS $PTHREAD_CFLAGS" LIBS="$PTHREAD_LIBS $LIBS"],
 AX_PBS([:], [AC_MSG_ERROR([
 PBS libraries/headers not found;
 add --with-pbs to set PBS installation root.]) ])
-if test ${sysconfdir} == '${prefix}/etc' -a "$prefix" == 'NONE'; then
-	sysconfdir='/etc'
-	ac_configure_args="${ac_configure_args} --sysconfdir=${sysconfdir}"
-fi
 CPPFLAGS="${CPPFLAGS} -DCONFDIR=${sysconfdir}"
 
 # headers:
