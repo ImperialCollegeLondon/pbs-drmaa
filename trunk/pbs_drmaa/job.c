@@ -110,6 +110,7 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 					apicall = "pbs_sigjob";
 					rc = pbs_sigjob( session->pbs_conn, (char*)job_id,
 							"SIGSTOP", NULL );
+					fsd_log_info(("pbs_sigjob(%s, SIGSTOP) =%d", job_id, rc));
 					if( rc == PBSE_NONE )
 						self->flags |= FSD_JOB_SUSPENDED;
 					break;
@@ -117,6 +118,7 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 					apicall = "pbs_sigjob";
 					rc = pbs_sigjob( session->pbs_conn, (char*)job_id,
 							"SIGCONT", NULL );
+					fsd_log_info(("pbs_sigjob(%s, SIGCONT) =%d", job_id, rc));
 					if( rc == PBSE_NONE )
 						self->flags &= ~FSD_JOB_SUSPENDED;
 					break;
@@ -124,6 +126,7 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 					apicall = "pbs_holdjob";
 					rc = pbs_holdjob( session->pbs_conn, (char*)job_id,
 							USER_HOLD, NULL );
+					fsd_log_info(("pbs_sigjob(%s, SIGHOLD) =%d", job_id, rc));
 					if( rc == PBSE_NONE )
 						self->flags |= FSD_JOB_HOLD;
 					break;
@@ -131,12 +134,14 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 					apicall = "pbs_rlsjob";
 					rc = pbs_rlsjob( session->pbs_conn, (char*)job_id,
 							USER_HOLD, NULL );
+					fsd_log_info(("pbs_rlsjob(%s) =%d", job_id, rc));
 					if( rc == PBSE_NONE )
 						self->flags &= FSD_JOB_HOLD;
 					break;
 				case DRMAA_CONTROL_TERMINATE:
 					apicall = "pbs_deljob";
 					rc = pbs_deljob( session->pbs_conn, (char*)job_id, NULL );
+					fsd_log_info(("pbs_deljob(%s) =%d", job_id, rc));
 					/* Torque:
 					 * deldelay=N -- delay between SIGTERM and SIGKILL (default 0) */
 					if( rc == PBSE_NONE )
