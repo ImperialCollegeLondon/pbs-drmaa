@@ -1,4 +1,4 @@
-/* $Id: drmaa.c 353 2010-10-18 13:45:14Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2007  FedStage Systems

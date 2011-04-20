@@ -1,4 +1,4 @@
-# $Id: ax_gcc_warnings.m4 2420 2009-06-24 14:40:21Z lukasz $
+# $Id$
 #
 # SYNOPSIS
 #
@@ -6,7 +6,7 @@
 #
 # DESCRIPTION
 #
-#   Check for LSF libraries and headers.
+#   Check for supported gcc options.
 #
 #   This macro calls::
 #
@@ -19,7 +19,7 @@
 #
 # LICENSE
 #
-#   Written by Łukasz Cieśnik <lukasz.ciesnik@fedstage.com>
+#   Written by Łukasz Cieśnik <lukasz.ciesnik@gmail.com>
 #   and placed under Public Domain.
 #
 AC_DEFUN([AX_GCC_WARNINGS], [

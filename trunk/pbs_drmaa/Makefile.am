@@ -1,4 +1,4 @@
-# $Id: Makefile.am 2420 2009-06-24 14:40:21Z lukasz $
+# $Id$
 # 
 # FedStage DRMAA for PBS Professional
 # Copyright (C) 2006-2009  FedStage Systems

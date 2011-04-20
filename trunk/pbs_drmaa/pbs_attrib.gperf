@@ -1,5 +1,5 @@
 %{
-/* $Id: pbs_attrib.gperf 2677 2009-09-08 14:32:22Z mmamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems
@@ -30,7 +30,7 @@ static char rcsid[]
 #	ifdef __GNUC__
 		__attribute__ ((unused))
 #	endif
-	= "$Id: pbs_attrib.gperf 2677 2009-09-08 14:32:22Z mmamonski $";
+	= "$Id$";
 #endif
 
 extern const fsd_attribute_t pbsdrmaa_pbs_attributes[];

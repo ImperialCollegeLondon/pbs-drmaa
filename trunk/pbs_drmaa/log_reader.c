@@ -1,4 +1,4 @@
-/* $Id: log_reader.c 323 2010-09-21 21:31:29Z mmatloka $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2007  FedStage Systems

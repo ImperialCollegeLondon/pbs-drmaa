@@ -1,4 +1,4 @@
-/* $Id: example.c 2 2009-10-12 09:51:22Z mamonski $ */
+/* $Id$ */
 /*
  *  DRMAA library for Torque/PBS
  *  Copyright (C) 2006-2007

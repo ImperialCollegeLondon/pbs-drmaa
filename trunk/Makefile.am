@@ -1,4 +1,4 @@
-# $Id: Makefile.am 2420 2009-06-24 14:40:21Z lukasz $
+# $Id$
 #
 # FedStage DRMAA for PBS Pro
 # Copyright (C) 2006-2009  FedStage Systems
@@ -23,4 +23,4 @@ EXTRA_DIST = \
  autogen.sh \
  m4/missing-dev-prog.sh
 
-SUBDIRS = drmaa_utils pbs_drmaa  doc
+SUBDIRS = drmaa_utils pbs_drmaa

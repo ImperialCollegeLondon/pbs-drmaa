@@ -1,4 +1,4 @@
-# $Id: pbs_drmaa.conf.example 2420 2009-06-24 14:40:21Z lukasz $
+# $Id$
 # pbs_drmaa.conf - Sample pbs_drmaa configuration file.
 
 #wait_thread: 1,

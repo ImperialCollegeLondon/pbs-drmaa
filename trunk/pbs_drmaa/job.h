@@ -1,4 +1,4 @@
-/* $Id: job.h 2 2009-10-12 09:51:22Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems
