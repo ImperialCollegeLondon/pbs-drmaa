@@ -94,7 +94,7 @@ pbsdrmaa_exc_raise_pbs( const char *function )
 	 * for given connection.
 	 */
 	/* XXX: PBSPro has some link problems with pbse_to_txt function */
-#if 1
+#if PBS_PROFESSIONAL_NO_LOG
 	message = pbse_to_txt( pbs_errno );
 #else
 	message = "pbs error";

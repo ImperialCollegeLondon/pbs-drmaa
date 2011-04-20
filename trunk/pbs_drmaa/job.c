@@ -204,7 +204,10 @@ retry:
 #ifndef PBS_PROFESSIONAL
 			fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
 #else
+#ifndef PBS_PROFESSIONAL_NO_LOG
 			fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
+#else
+			fsd_log_error(("pbs_statjob error: %d", pbs_errno));
 #endif
 			switch( pbs_errno )
 			 {
