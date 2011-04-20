@@ -1,7 +1,11 @@
-$Id: AUTHORS 746 2008-03-06 15:07:58Z lukasz $
+$Id$
 
 Author:
-	Łukasz Cieśnik <lukasz.ciesnik@fedstage.com>
+	Łukasz Cieśnik <lukasz.ciesnik@gmail.com>
+
+Contributors (also current maintainers):
+       Michał Matłoka <michal.matloka@student.put.poznan.pl>
+       Mariusz Mamoński <mamonski@man.poznan.pl>
 
 Send bug reports to:
-	drmaa-pbspro-users@lists.fedstage.com
+       Mariusz Mamoński <mamonski@man.poznan.pl>

@@ -1,9 +1,10 @@
 AC_INIT([DRMAA for PBS Pro], [1.0.7], [mamonski@man.poznan.pl], [pbs-drmaa])
 AC_PREREQ(2.59)
-AC_REVISION([$Id: configure.ac 2694 2009-09-12 17:17:35Z mmamonski $])
+AC_REVISION([$Id$])
 AC_COPYRIGHT([
-DRMAA for PBS Pro
+DRMAA for Torque/PBS Professional
 Copyright (C) 2006-2009  FedStage Systems
+Copyright (C) 2011  Poznan Supercomputing and Networking Center
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,7 +39,7 @@ AM_INIT_AUTOMAKE
 AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
 			[produce code suiteable for debugging and print logs at runtime]))
 AC_ARG_ENABLE(development, AC_HELP_STRING([--enable-development],
-			[enable development mode: make additional checks (suiteable for FedStage DRMAA for PBS Pro developers)]))
+			[enable development mode: make additional checks (suiteable for developers)]))
 
 # programs:
 AC_PROG_CC
@@ -51,15 +52,6 @@ AC_PROG_LN_S
 
 # code generation tools:
 AX_GPERF
-
-# reStructuredText processing:
-AX_DOCUTILS()
-if test x$RST2HTML = x; then
-	RST2HTML="sh m4/missing-dev-prog.sh docutils"
-fi
-if test x$RST2LATEX = x; then
-	RST2LATEX="sh m4/missing-dev-prog.sh docutils"
-fi
 
 # check compiler / set basic flags:
 if test x$ac_cv_prog_cc_stdc = xno; then
@@ -176,7 +168,6 @@ fi
 AC_CONFIG_FILES([
 	Makefile
 	pbs_drmaa/Makefile
-	doc/Makefile
 ])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SUBDIRS([drmaa_utils])

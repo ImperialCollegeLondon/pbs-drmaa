@@ -1,4 +1,4 @@
-/* $Id: submit.h 338 2010-09-28 14:48:45Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems

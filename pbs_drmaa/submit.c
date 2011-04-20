@@ -1,4 +1,4 @@
-/* $Id: submit.c 386 2011-01-06 18:13:33Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems
@@ -45,7 +45,7 @@ static char rcsid[]
 #	ifdef __GNUC__
 		__attribute__ ((unused))
 #	endif
-	= "$Id: submit.c 386 2011-01-06 18:13:33Z mamonski $";
+	= "$Id$";
 #endif
 
 static void
@@ -545,8 +545,7 @@ static void parse_resources(fsd_template_t *pbs_attr,const char *resources)
 			}
 			else
 			{
-                                fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE, "Invalid native specification: %s (Invalid resource specification: %s)", resources, arg);
-
+				fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE, "Invalid native specification: %s (Invalid resource specification: %s)", resources, arg);
 			}
 		}
 	  }
@@ -568,7 +567,7 @@ static void parse_additional_attr(fsd_template_t *pbs_attr,const char *add_attr)
 
 	TRY
 	  {
-		for (arg = strtok_r(add_attr_copy, ",", &ctxt); arg; arg = strtok_r(NULL, ":",&ctxt) )
+		for (arg = strtok_r(add_attr_copy, ";", &ctxt); arg; arg = strtok_r(NULL, ";",&ctxt) )
 		{
 			name = fsd_strdup(strtok_r(arg, "=", &ctxt2));
 			value = strtok_r(NULL, "=", &ctxt2);
@@ -605,21 +604,35 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 		int opt = 0;
 
 		TRY
-		 {
+		  {
 			for (arg = strtok_r(native_spec_copy, " \t", &ctxt); arg; arg = strtok_r(NULL, " \t",&ctxt) ) {
-				if (!opt) {
-					if ( (arg[0] != '-') || ((strlen(arg) != 2) &&  arg[2] != ' ' && arg[1] !='-' ) )
+				if (!opt)
+				  {
+					if ( (arg[0] != '-') || (strlen(arg) != 2) )
 						fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE,
-								"Invalid native specification: %s",
-								native_specification);
-					if(arg[1] == '-') {
-						parse_additional_attr(pbs_attr, arg+2);
+							"Invalid native specification: -o(ption) expected (arg=%s native=%s).",
+							arg, native_specification);
+
+						case 'h' :
+							pbs_attr->set_attr( pbs_attr, "Hold_Types" , arg );
+							break;
+
+					opt = arg[1];
+
+					/* handle NO-arg options */
+
+					switch (opt) {
+						case 'h' :
+							pbs_attr->set_attr( pbs_attr, "Hold_Types" , "u" );
+							break;
+						default :
+							continue; /*no NO-ARG option */
 					}
-					else {
-						opt = arg[1];
-					}
-					
-				} else {
+
+					opt = 0;
+				  }
+				else
+				  {
 					switch (opt) {
 						
 						case 'W' :
@@ -642,9 +655,6 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 							break;
 						case 'a' :
 							pbs_attr->set_attr( pbs_attr, "Execution_Time" , arg );
-							break;
-						case 'h' :
-							pbs_attr->set_attr( pbs_attr, "Hold_Types" , arg );
 							break;
 						case 'A' :
 							pbs_attr->set_attr( pbs_attr, "Account_Name" , arg );
@@ -671,7 +681,6 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 							pbs_attr->set_attr( pbs_attr, "User_List" , arg );
 							break;
 						case 'v' :
-						case 'V' :
 							pbs_attr->set_attr( pbs_attr, "Variable_List" , arg );
 							break;
 						case 'M' :
@@ -686,7 +695,6 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 									"Invalid native specification: %s (Unsupported option: -%c)",
 									native_specification, opt);
 					}
-
 					opt = 0;
 				}
 			}

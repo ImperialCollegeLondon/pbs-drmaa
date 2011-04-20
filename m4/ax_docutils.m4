@@ -1,4 +1,4 @@
-# $Id: ax_docutils.m4 2420 2009-06-24 14:40:21Z lukasz $
+# $Id$
 #
 # SYNOPSIS
 #

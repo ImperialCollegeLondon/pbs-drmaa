@@ -1,4 +1,4 @@
-/* $Id: util.h 323 2010-09-21 21:31:29Z mmatloka $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems

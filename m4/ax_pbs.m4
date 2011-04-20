@@ -1,4 +1,4 @@
-# $Id: ax_pbs.m4 2420 2009-06-24 14:40:21Z lukasz $
+# $Id$
 #
 # SYNOPSIS
 #
@@ -20,7 +20,7 @@
 #
 # LICENSE
 #
-#   Written by Łukasz Cieśnik <lukasz.ciesnik@fedstage.com>
+#   Written by Łukasz Cieśnik <lukasz.ciesnik@gmail.com>
 #   and placed under Public Domain
 #
 

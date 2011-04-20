@@ -1,4 +1,4 @@
-/* $Id: job.c 370 2010-11-16 09:51:00Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems
@@ -42,7 +42,7 @@ static char rcsid[]
 #	ifdef __GNUC__
 		__attribute__ ((unused))
 #	endif
-	= "$Id: job.c 370 2010-11-16 09:51:00Z mamonski $";
+	= "$Id$";
 #endif
 
 
@@ -384,8 +384,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 	 {
 		int hours, minutes, seconds;
 		long mem;
-		if( cpu_usage && sscanf( cpu_usage, "%d:%d:%d",
-				&hours, &minutes, &seconds ) == 3 )
+		if( cpu_usage && sscanf( cpu_usage, "%d:%d:%d", &hours, &minutes, &seconds ) == 3 )
 		 {
 			self->cpu_usage = 60*( 60*hours + minutes ) + seconds;
 			fsd_log_debug(( "cpu_usage: %s=%lds", cpu_usage, self->cpu_usage ));
@@ -400,8 +399,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 			self->vmem_usage = 1024*mem;
 			fsd_log_debug(( "vmem_usage: %s=%ldB", vmem_usage, self->vmem_usage ));
 		 }
-		if( walltime && sscanf( walltime, "%d:%d:%d",
-					&hours, &minutes, &seconds ) == 3 )
+		if( walltime && sscanf( walltime, "%d:%d:%d", &hours, &minutes, &seconds ) == 3 )
 		 {
 			self->walltime = 60*( 60*hours + minutes ) + seconds;
 			fsd_log_debug(( "walltime: %s=%lds", walltime, self->walltime ));
@@ -413,7 +411,7 @@ void
 pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
-	
+
 	if( pbssession->pbs_home == NULL )
 		pbsdrmaa_job_on_missing_standard( self );	
 	else
@@ -428,7 +426,7 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 	unsigned missing_mask = 0;
 
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
-	fsd_log_warning(( "self %s missing from DRM queue", self->job_id ));
+	fsd_log_warning(( "Job %s missing from DRM queue", self->job_id ));
 
 	switch( session->missing_jobs )
 	{
@@ -464,6 +462,8 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 		self->exit_status = -1;
 	}
 
+	fsd_cond_broadcast( &self->status_cond);
+
 	fsd_log_return(( "; job_ps=%s, exit_status=%d",
 				drmaa_job_ps_to_str(self->state), self->exit_status ));
 }
@@ -475,7 +475,7 @@ pbsdrmaa_job_on_missing_log_based( fsd_job_t *self )
 	pbsdrmaa_log_reader_t *log_reader = NULL;
 	
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
-	fsd_log_warning(( "self %s missing from DRM queue", self->job_id ));
+	fsd_log_info(( "Job %s missing from DRM queue", self->job_id ));
 	
 	TRY
 	{	

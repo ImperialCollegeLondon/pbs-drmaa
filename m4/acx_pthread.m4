@@ -1,4 +1,4 @@
-dnl $Id: acx_pthread.m4 529 2007-12-20 21:04:22Z lukasz $
+dnl $Id$
 
 dnl
 dnl Check for libs/cppflags needed for POSIX Threads

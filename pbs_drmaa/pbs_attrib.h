@@ -1,4 +1,4 @@
-/* $Id: pbs_attrib.h 256 2010-08-10 16:31:35Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems

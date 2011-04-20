@@ -1,4 +1,4 @@
-/* $Id: session.c 385 2011-01-04 18:24:05Z mamonski $ */
+/* $Id$ */
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems
@@ -52,7 +52,7 @@ static char rcsid[]
 #	ifdef __GNUC__
 		__attribute__ ((unused))
 #	endif
-	= "$Id: session.c 385 2011-01-04 18:24:05Z mamonski $";
+	= "$Id$";
 #endif
 
 static void
@@ -212,16 +212,15 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 	pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self;
 	fsd_conf_option_t *pbs_home;
 	pbs_home = fsd_conf_dict_get(self->configuration, "pbs_home" );
-	if( pbs_home )
-	 {
-		if( pbs_home->type == FSD_CONF_STRING )
-		 {
+
+	if( pbs_home && pbs_home->type == FSD_CONF_STRING )
+	  {
 			struct stat statbuf;
 			char * volatile log_path;
 			struct tm tm;
 			
 			pbsself->pbs_home = pbs_home->val.string;
-			fsd_log_debug(("pbs_home: %s",pbsself->pbs_home));
+			fsd_log_info(("pbs_home: %s",pbsself->pbs_home));
 			pbsself->super_wait_thread = pbsself->super.wait_thread;
 			pbsself->super.wait_thread = pbsdrmaa_session_wait_thread;		
 			pbsself->wait_thread_log = true;
@@ -229,33 +228,23 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 			time(&pbsself->log_file_initial_time);	
 			localtime_r(&pbsself->log_file_initial_time,&tm);
 
-			if((log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d",
-    		  		pbsself->pbs_home,	 
-  		    		tm.tm_year + 1900,
-   		    		tm.tm_mon + 1,
-					tm.tm_mday)) == NULL) {
-				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"WT - Memory allocation wasn't possible");
-			}
+			log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d",
+					pbsself->pbs_home,
+					tm.tm_year + 1900,
+					tm.tm_mon + 1,
+					tm.tm_mday);
 
-			if(stat(log_path,&statbuf) == -1) {
+			if(stat(log_path,&statbuf) == -1)
+			  {
 				char errbuf[256] = "InternalError";
-				(void)strerror_r(errno, errbuf, 256);
+				(void)strerror_r(errno, errbuf, sizeof(errbuf));
 				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"stat error: %s",errbuf);
-			}
+			  }
 	
 			fsd_log_debug(("Log file %s size %d",log_path,(int) statbuf.st_size));
 			pbsself->log_file_initial_size = statbuf.st_size;
 			fsd_free(log_path);
-		 }
-		else
-		{
-			pbsself->super.enable_wait_thread = false;
-			pbsself->wait_thread_log = false;
-			fsd_log_debug(("pbs_home not configured. Running standard wait_thread (pooling)."));
-		}
-	 }
-
-
+	  }
 
 	pbsself->super_apply_configuration(self); /* call method from the superclass */
 }
@@ -276,7 +265,7 @@ pbsdrmaa_session_update_all_jobs_status( fsd_drmaa_session_t *self )
 	 {
 		conn_lock = fsd_mutex_lock( &self->drm_connection_mutex );
 retry:
-
+/* TODO: query only for user's jobs pbs_selstat + ATTR_u */
 #ifdef PBS_PROFESSIONAL
 		status = pbs_statjob( pbsself->pbs_conn, NULL, NULL, NULL );
 #else
@@ -493,7 +482,7 @@ pbsdrmaa_session_do_drm_keeps_completed_jobs( pbsdrmaa_session_t *self )
 		if( default_queue == NULL )
 			fsd_log_warning(( "no default queue set on PBS server" ));
 		else if( keep_completed == NULL && self->pbs_home == NULL )
-			fsd_log_warning(( "PBS server is not configured to keep completed jobs\n"
+			fsd_log_warning(( "Torque server is not configured to keep completed jobs\n"
 						"in Torque: set keep_completed parameter of default queue\n"
 						"  $ qmgr -c 'set queue batch keep_completed = 60'\n"
 						" or configure DRMAA to utilize log files"
@@ -512,7 +501,12 @@ pbsdrmaa_session_do_drm_keeps_completed_jobs( pbsdrmaa_session_t *self )
 
 	 }
 	END_TRY
+
+	return result;
 #endif
+	fsd_log_warning(( "PBS Professional does not keep information about the completed jobs\n"
+				" You must configure DRMAA to utilize log files in order to always get valid job exit status"
+				));
 	return false;
 }
 
