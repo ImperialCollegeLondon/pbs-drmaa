@@ -59,11 +59,7 @@ ax_pbs_ok="no"
 AH_TEMPLATE([PBS_PROFESSIONAL], [compiling against PBS Professional])
 AH_TEMPLATE([PBS_PROFESSIONAL_NO_LOG], [Do not use liblog while linking with PBS Professional])
 
-AS_IF([test "x$enable_foo" != "xno"], [
-  dnl Do the stuff needed for enabling the feature
-])
-
-if test x"$enable-pbs-log" != "xno"; then
+if test x"$enable_pbs_log" != "xno"; then
 	ax_pbs_lib_log=" -llog"
 else
 	ax_pbs_lib_log=""
