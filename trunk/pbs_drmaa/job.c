@@ -192,6 +192,7 @@ pbsdrmaa_job_update_status( fsd_job_t *self )
 	 {
 		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
 retry:
+
 #ifdef PBS_PROFESSIONAL
 		status = pbs_statjob( session->pbs_conn, self->job_id, NULL, NULL );
 #else

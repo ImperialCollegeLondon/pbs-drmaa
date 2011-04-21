@@ -83,23 +83,12 @@ pbsdrmaa_exc_raise_pbs( const char *function )
 	const char *message = NULL;
 
 	_pbs_errno = pbs_errno;
-	/*
-	 * Gathering error messages differ between PBS forks.
-	 * - OpenPBS - ...
-	 * - Torque - pbse_to_txt takes PBS error code (stored in pbs_errno)
-	 *  and returns corresponding error message.
-	 * - PBS Pro - stores errno of last operation inside pbs_errno variable;
-	 *  pbse_to_txt always return NULL.
-	 * All of them define pbs_geterrmsg which returns last error message
-	 * for given connection.
-	 */
-	/* XXX: PBSPro has some link problems with pbse_to_txt function */
-#if PBS_PROFESSIONAL_NO_LOG
+
+#ifndef PBS_PROFESSIONAL_NO_LOG
 	message = pbse_to_txt( pbs_errno );
 #else
 	message = "pbs error";
 #endif
-
 
 	fsd_errno = pbsdrmaa_map_pbs_errno( _pbs_errno );
 	fsd_log_error((

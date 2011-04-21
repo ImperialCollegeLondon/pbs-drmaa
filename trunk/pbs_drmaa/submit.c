@@ -178,7 +178,7 @@ retry:
 				(struct attropl*)pbs_attr, self->script_filename,
 				self->destination_queue, NULL );
 
-		fsd_log_info(("pbs_submit() =%s", job_id));
+		fsd_log_info(("pbs_submit(%s, %s) =%s", self->script_filename, self->destination_queue, job_id));
 
 		if( job_id == NULL )
 		{
@@ -589,6 +589,8 @@ void
 pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 		const char *native_specification )
 {
+        fsd_log_enter(( "({native_specification=%s})", native_specification ));
+
 	if( native_specification == NULL )
 		native_specification = self->job_template->get_attr(
 				self->job_template, DRMAA_NATIVE_SPECIFICATION );
@@ -612,10 +614,6 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 						fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE,
 							"Invalid native specification: -o(ption) expected (arg=%s native=%s).",
 							arg, native_specification);
-
-						case 'h' :
-							pbs_attr->set_attr( pbs_attr, "Hold_Types" , arg );
-							break;
 
 					opt = arg[1];
 
@@ -670,6 +668,7 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 							break;
 						case 'q' :
 							self->destination_queue = fsd_strdup( arg );
+							fsd_log_debug(("self->destination_queue = %s", self->destination_queue));
 							break;
 						case 'r' :
 							pbs_attr->set_attr( pbs_attr, "Rerunable" , arg );
