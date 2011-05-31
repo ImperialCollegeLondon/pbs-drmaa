@@ -417,7 +417,7 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
 
-	if( pbssession->pbs_home == NULL )
+	if( pbssession->pbs_home == NULL || pbssession->super.wait_thread_started )
 		pbsdrmaa_job_on_missing_standard( self );	
 	else
 		pbsdrmaa_job_on_missing_log_based( self );	
@@ -445,7 +445,7 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 	if( self->state < DRMAA_PS_DONE
 			&&  (self->state & ~missing_mask) )
 		fsd_exc_raise_fmt(
-				FSD_ERRNO_INTERNAL_ERROR,
+				FSD_DRMAA_ERRNO_INVALID_JOB,
 				"self %s missing from queue", self->job_id
 				);
 
