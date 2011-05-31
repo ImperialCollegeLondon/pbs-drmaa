@@ -423,7 +423,16 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							if ( state_running )
 							{
 								fsd_log_debug(("WT - forcing update of job: %s", temp_job->job_id ));
-								temp_job->update_status( temp_job );
+								TRY
+								{
+									temp_job->update_status( temp_job );
+								}
+								EXCEPT_DEFAULT
+								{
+									/*TODO: distinguish between invalid job and internal errors */
+									fsd_log_debug(("Job finished just after entering running state: %s", temp_job->job_id));
+								}
+								END_TRY
 							}
 							else
 							{
@@ -502,9 +511,9 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 		EXCEPT_DEFAULT
 		 {
 			const fsd_exc_t *e = fsd_exc_get();
-
-			fsd_log_error(( "%s: <%d:%s>", self->name, e->code(e), e->message(e) ));
-			fsd_exc_reraise();
+			/* Its better to exit and communicate error rather then let the application to hang */
+			fsd_log_fatal(( "Exception in wait thread %s: <%d:%s>. Exiting !!!", self->name, e->code(e), e->message(e) ));
+			exit(1);
 		 }
 		END_TRY
 
