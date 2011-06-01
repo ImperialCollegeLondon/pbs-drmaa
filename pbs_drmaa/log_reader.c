@@ -210,7 +210,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 				struct batch_status status;
 				status.next = NULL;
 
-				while ( sscanf(ptr, "%255[^;]%n", field, &n) == 1 ) /* divide current line into fields */
+				while ( sscanf(ptr, "%255[^;]%n", field, &n) == 1 ) /* split current line into fields */
 				{
 					if(field_n == FLD_DATE)
 					{
@@ -416,6 +416,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							 	++ptr2;						
 							 }
 							struct_state.value = fsd_strdup("C");	/* we got exit_status so we say that it has completed */
+							fsd_log_info(("WT - job %s found as finished on %u", self->name, (unsigned int)time(NULL)));
 						}						
 						 
 						if(self->job == NULL) /* wait_thread */
@@ -498,13 +499,22 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 			
 			if(self->job == NULL)
 			{
+				struct timeval timeout_tv;
+				fd_set log_fds;
+	
 				fsd_mutex_unlock( &self->session->mutex );			
-				usleep(1000000);
+				
+				FD_ZERO(&log_fds);
+    				FD_SET(self->fd, &log_fds);
+
+				timeout_tv.tv_sec = 1;
+    				timeout_tv.tv_usec = 0;
+
+				/* ignore return value - the next get line call will handle IO errors */
+				(void)select(1, &log_fds, NULL, NULL, &timeout_tv);
+
 				fsd_mutex_lock( &self->session->mutex );	
-			}
-			
-			if(self->job == NULL)
-			{
+
 				self->run_flag = self->session->wait_thread_run_flag;
 			}
 		}		
