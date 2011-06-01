@@ -416,7 +416,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							 	++ptr2;						
 							 }
 							struct_state.value = fsd_strdup("C");	/* we got exit_status so we say that it has completed */
-							fsd_log_info(("WT - job %s found as finished on %u", self->name, (unsigned int)time(NULL)));
+							fsd_log_info(("WT - job %s found as finished on %u", temp_job->job_id, (unsigned int)time(NULL)));
 						}						
 						 
 						if(self->job == NULL) /* wait_thread */
