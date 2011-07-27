@@ -64,6 +64,9 @@ pbsdrmaa_job_on_missing_log_based( fsd_job_t *self );
 static void
 pbsdrmaa_job_update( fsd_job_t *self, struct batch_status* );
 
+bool
+pbsdrmaa_job_update_status_accounting( fsd_job_t *self );
+
 
 fsd_job_t *
 pbsdrmaa_job_new( char *job_id )
@@ -188,6 +191,7 @@ pbsdrmaa_job_update_status( fsd_job_t *self )
 	pbsdrmaa_session_t *session = (pbsdrmaa_session_t*)self->session;
 
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
+	
 	TRY
 	 {
 		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
@@ -202,38 +206,44 @@ retry:
 				 session->pbs_conn, self->job_id, (void*)status ));
 		if( status == NULL )
 		 {
-#ifndef PBS_PROFESSIONAL
-			fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
-#else
-#  ifndef PBS_PROFESSIONAL_NO_LOG
-			fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
-#  else
-			fsd_log_error(("pbs_statjob error: %d", pbs_errno));
-#  endif
-#endif
-			switch( pbs_errno )
-			 {
-				case PBSE_UNKJOBID:
-					break;
-				case PBSE_PROTOCOL:
-				case PBSE_EXPIRED:
-					if ( session->pbs_conn >= 0 )
-						pbs_disconnect( session->pbs_conn );
-					sleep(1);
-					session->pbs_conn = pbs_connect( session->super.contact );
-					if( session->pbs_conn < 0 )
-						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-					else 
-					 {
-						fsd_log_error(("retry:"));
-						goto retry;
-					 }
-				default:
-					pbsdrmaa_exc_raise_pbs( "pbs_statjob" );
-					break;
-				case 0:  /* ? */
-					fsd_exc_raise_code( FSD_ERRNO_INTERNAL_ERROR );
-					break;
+			if(pbsdrmaa_job_update_status_accounting(self) == false)
+			{
+	#ifndef PBS_PROFESSIONAL
+				fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
+	#else
+	#  ifndef PBS_PROFESSIONAL_NO_LOG
+				fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
+	#  else
+				fsd_log_error(("pbs_statjob error: %d", pbs_errno));
+	#  endif
+	#endif
+
+				/**/
+
+				switch( pbs_errno )
+				 {
+					case PBSE_UNKJOBID:
+						break;
+					case PBSE_PROTOCOL:
+					case PBSE_EXPIRED:
+						if ( session->pbs_conn >= 0 )
+							pbs_disconnect( session->pbs_conn );
+						sleep(1);
+						session->pbs_conn = pbs_connect( session->super.contact );
+						if( session->pbs_conn < 0 )
+							pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+						else 
+						 {
+							fsd_log_error(("retry:"));
+							goto retry;
+						 }
+					default:
+						pbsdrmaa_exc_raise_pbs( "pbs_statjob" );
+						break;
+					case 0:  /* ? */
+						fsd_exc_raise_code( FSD_ERRNO_INTERNAL_ERROR );
+						break;
+				 }
 			 }
 		 }
 
@@ -495,4 +505,29 @@ pbsdrmaa_job_on_missing_log_based( fsd_job_t *self )
 
 	fsd_log_return(( "; job_ps=%s, exit_status=%d",
 				drmaa_job_ps_to_str(self->state), self->exit_status ));	
+}
+
+bool
+pbsdrmaa_job_update_status_accounting( fsd_job_t *self )
+{
+	fsd_drmaa_session_t *session = self->session;
+	pbsdrmaa_log_reader_t *log_reader = NULL;
+	bool res = false;
+	
+	fsd_log_enter(( "({job_id=%s})", self->job_id ));
+	fsd_log_info(( "Reading job %s info from accounting file", self->job_id ));
+	
+	TRY
+	{	
+		log_reader = pbsdrmaa_log_reader_accounting_new( session, self);
+		bool res = log_reader->read_log( log_reader ); 
+	}
+	FINALLY
+	{
+		pbsdrmaa_log_reader_destroy( log_reader );
+	}
+	END_TRY
+
+	fsd_log_return((""));
+	return res;
 }

@@ -32,6 +32,9 @@ typedef struct pbsdrmaa_log_reader_s pbsdrmaa_log_reader_t;
 pbsdrmaa_log_reader_t * 
 pbsdrmaa_log_reader_new ( fsd_drmaa_session_t * session, fsd_job_t * job );
 
+pbsdrmaa_log_reader_t * 
+pbsdrmaa_log_reader_accounting_new ( fsd_drmaa_session_t * session, fsd_job_t * job );
+
 void
 pbsdrmaa_log_reader_destroy ( pbsdrmaa_log_reader_t * self );
 
@@ -39,7 +42,7 @@ struct pbsdrmaa_log_reader_s {
 	fsd_drmaa_session_t *volatile session ;
 	fsd_job_t *volatile job;
 	
-	void (*
+	bool (*
 	read_log) ( pbsdrmaa_log_reader_t * self );
 	
 	void (*
