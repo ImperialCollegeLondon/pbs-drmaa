@@ -48,7 +48,7 @@
 
 #include <errno.h>
 
-static void
+static bool
 pbsdrmaa_read_log();
 
 static void
@@ -62,6 +62,15 @@ pbsdrmaa_select_file_job_on_missing ( pbsdrmaa_log_reader_t * self );
 
 static ssize_t
 pbsdrmaa_read_line_job_on_missing ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx );
+
+static void
+pbsdrmaa_select_file_accounting ( pbsdrmaa_log_reader_t * self );
+
+static ssize_t
+pbsdrmaa_read_line_accounting ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx );
+
+static bool 
+pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self );
 
 int 
 fsd_job_id_cmp(const char *s1, const char *s2);
@@ -97,6 +106,48 @@ pbsdrmaa_log_reader_new ( fsd_drmaa_session_t *session, fsd_job_t *job )
 			self->read_line = pbsdrmaa_read_line_wait_thread;
 		}		
 		self->read_log = pbsdrmaa_read_log;	
+		
+		self->log_files = NULL;
+		self->log_files_number = 0;
+		
+		self->run_flag = true;
+		self->fd = -1;
+		self->date_changed = true;
+		self->first_open = true;
+		
+		self->log_file_initial_size = 0;
+		self->log_file_read_size = 0;
+	}
+	EXCEPT_DEFAULT
+	{
+		if( self != NULL)
+			fsd_free(self);
+			
+		fsd_exc_reraise();
+	}
+	END_TRY
+	fsd_log_return((""));
+	return self;
+}
+
+pbsdrmaa_log_reader_t * 
+pbsdrmaa_log_reader_accounting_new ( fsd_drmaa_session_t *session, fsd_job_t *job )
+{
+	pbsdrmaa_log_reader_t *volatile self = NULL;
+
+	fsd_log_enter((""));
+	TRY
+	{
+		fsd_malloc(self, pbsdrmaa_log_reader_t );
+		
+		self->session = session;
+		
+		self->job = job;
+		self->name = "Accounting";
+		self->select_file = pbsdrmaa_select_file_accounting;
+		self->read_line = pbsdrmaa_read_line_accounting;
+				
+		self->read_log = pbsdrmaa_read_log_accounting;	
 		
 		self->log_files = NULL;
 		self->log_files_number = 0;
@@ -164,11 +215,29 @@ enum field_msg
 	FLD_MSG_WALLTIME = 4
 };
 
+enum field_msg_accounting
+{
+	FLD_MSG_ACC_USER = 0,
+	FLD_MSG_ACC_GROUP = 1,
+	FLD_MSG_ACC_JOBNAME = 2,
+	FLD_MSG_ACC_QUEUE = 3,
+	FLD_MSG_ACC_CTIME = 4,
+	FLD_MSG_ACC_QTIME = 5,
+	FLD_MSG_ACC_ETIME = 6,
+	FLD_MSG_ACC_START = 7,
+	FLD_MSG_ACC_OWNER = 8,
+	FLD_MSG_ACC_EXEC_HOST = 9,
+	FLD_MSG_ACC_RES_NEEDNODES = 10,
+	FLD_MSG_ACC_RES_NODECT = 11,
+	FLD_MSG_ACC_RES_NODES = 12,
+	FLD_MSG_ACC_RES_WALLTIME = 13
+};
+
 #define FLD_MSG_STATUS "0010"
 #define FLD_MSG_STATE "0008"
 #define FLD_MSG_LOG "0002"
 
-void 
+bool 
 pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 {
 	pbsdrmaa_job_t *pbsjob = (pbsdrmaa_job_t*) self->job;	
@@ -540,6 +609,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 	END_TRY
 	
 	fsd_log_return((""));
+	return true;
 }
 
 void
@@ -746,6 +816,280 @@ pbsdrmaa_read_line_job_on_missing ( pbsdrmaa_log_reader_t * self, char * line, c
 		return -1; 
 
 	return n; 
+}
+
+void
+pbsdrmaa_select_file_accounting ( pbsdrmaa_log_reader_t * self )
+{
+	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*) self->session;
+		
+	char * log_path = NULL;
+
+	struct tm tm; 
+		
+	fsd_log_enter((""));
+		
+	time(&self->t);	
+			
+	localtime_r(&self->t,&tm);
+				
+	#define DRMAA_ACCOUNTING_MAX_TRIES (12)
+	/* generate new date, close file and open new */
+	if((log_path = fsd_asprintf("%s/server_priv/accounting/%04d%02d%02d",
+				pbssession->pbs_home,	 
+				tm.tm_year + 1900,
+				tm.tm_mon + 1,
+				tm.tm_mday)) == NULL) {
+		fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"Read accounting file - Memory allocation wasn't possible");
+	}
+
+	if(self->fd != -1)
+		close(self->fd);
+
+	fsd_log_debug(("Accounting Log file: %s",log_path));				
+
+	if((self->fd = open(log_path,O_RDONLY) ) == -1 )
+	{
+		fsd_log_error(("Can't open accounting log file. Change directory chmod and verify pbs_home."));
+	} 
+
+	fsd_free(log_path);
+
+	fsd_log_debug(("Accounting Log file opened"));
+
+	fsd_log_return((""));	
+}
+
+ssize_t
+pbsdrmaa_read_line_accounting ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx )
+{
+	return fsd_getline_buffered(line,buffer,size,self->fd,idx,end_idx,line_idx);
+}
+
+enum field_acc
+{ 
+	FLD_ACC_DATE = 0,
+	FLD_ACC_EVENT = 1,
+	FLD_ACC_ID = 2,
+	FLD_ACC_MSG = 3
+};
+
+bool 
+pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
+{
+	pbsdrmaa_job_t *pbsjob = (pbsdrmaa_job_t*) self->job;	
+	bool res = false;
+	
+	fsd_job_t *volatile temp_job = NULL;
+		
+	fsd_log_enter((""));
+	fsd_log_debug(("Accounting Log file opened"));
+	if(self->job == NULL)
+		fsd_mutex_lock( &self->session->mutex );
+
+	TRY
+	{		
+		TRY
+		{
+			char line[4096] = "";
+			char buffer[4096] = "";
+			int idx = 0, end_idx = 0, line_idx = 0;
+			
+			self->select_file(self);
+			
+			if(self->fd != -1) 					
+			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0) 			
+			{
+				const char *volatile ptr = line;
+  				char field[256] = "";
+				int volatile field_n = 0;
+ 				int n;
+				
+				bool volatile job_id_match = false;	
+			
+				bool volatile job_found = false;
+  				char *  temp_date = NULL;
+				
+				struct batch_status status;
+				
+				while ( sscanf(ptr, "%255[^;]%n", field, &n) == 1 ) /* split current line into fields */
+				{
+					status.next = NULL;
+					status.attribs = NULL;
+				
+					if(field_n == FLD_ACC_DATE)
+					{
+						temp_date = fsd_strdup(field);
+					}
+					else if(field_n == FLD_ACC_EVENT)
+					{
+							
+					}
+					else if(field_n == FLD_ACC_ID)
+					{							
+						TRY
+						{								
+								int diff = -1;
+								diff = fsd_job_id_cmp(self->job->job_id,field);
+								if( diff == 0)
+								{
+									/* read this file to the place we started and exit*/
+									fsd_log_debug(("Accounting found job: %s",self->job->job_id));
+									job_found = true;
+									job_id_match = true; 
+									status.name = fsd_strdup(self->job->job_id);									
+								}	
+						}
+						END_TRY	
+					}
+					else if(job_id_match && field_n == FLD_ACC_MSG)
+					{					
+						struct attrl * struct_attrl = calloc(10,sizeof(struct attrl));
+											     
+						if(field[0] == 'q')
+						{
+							status.attribs = &struct_attrl[0];
+							struct_attrl[0].name =  ATTR_queue;
+							struct_attrl[0].value = fsd_strdup(strchr(field,'=')+1);
+							struct_attrl[0].next = NULL;
+						}
+						else if(field[0] == 'u')
+						{
+							/* rusage */
+							const char *ptr2 = field;
+							char  msg[ 256 ] = "";
+							int n2 = 0;
+							int msg_field_n = 0;	
+				
+							status.attribs = &struct_attrl[0];
+
+							while ( sscanf(ptr2, "%255[^ ]%n", msg, &n2) == 1 )
+							 {						
+								switch(msg_field_n) 
+								{
+									case FLD_MSG_ACC_USER:
+										struct_attrl[msg_field_n].name = ATTR_euser;									
+										break;
+
+									case FLD_MSG_ACC_GROUP:
+										struct_attrl[msg_field_n].name = ATTR_egroup;
+										break;
+
+									case FLD_MSG_ACC_JOBNAME:
+										struct_attrl[msg_field_n].name = ATTR_name;
+										break;
+
+									case FLD_MSG_ACC_QUEUE:
+										struct_attrl[msg_field_n].name = ATTR_queue;
+										break; 
+
+									case FLD_MSG_ACC_CTIME:
+										struct_attrl[msg_field_n].name = ATTR_ctime;
+										break; 
+										
+									case FLD_MSG_ACC_QTIME:
+										struct_attrl[msg_field_n].name = ATTR_qtime;
+										break; 
+										
+									case FLD_MSG_ACC_ETIME:
+										struct_attrl[msg_field_n].name = ATTR_etime;
+										break; 
+										
+									case FLD_MSG_ACC_START:
+										struct_attrl[msg_field_n].name = ATTR_start_time;
+										break; 
+										
+									case FLD_MSG_ACC_OWNER:
+										struct_attrl[msg_field_n].name = ATTR_owner;
+										break; 
+										
+									case FLD_MSG_ACC_EXEC_HOST:
+										struct_attrl[msg_field_n].name = ATTR_exechost;
+										break; 										
+								}
+								
+								struct_attrl[msg_field_n].value  = fsd_strdup(strchr(msg,'=')+1);
+								if(msg_field_n!=9)
+								{
+									struct_attrl[msg_field_n].next = &struct_attrl[msg_field_n+1];
+								}
+								else
+								{
+									struct_attrl[msg_field_n].next = NULL;
+									break;
+								}
+							      
+								ptr2 += n2; 
+								msg_field_n++;
+								if ( *ptr2 != ' ' )
+							      	 {
+									 break; 
+							  	 }
+							 	++ptr2;						
+							 }
+						}						
+						 
+					    if( job_found && status.attribs != NULL) 
+						 {
+							fsd_log_debug(("Accounting file - updating job: %s", self->job->job_id ));					
+							pbsjob->update( self->job, &status );
+							res = true;
+						 }
+						
+						if(self->job == NULL)
+						{
+							fsd_cond_broadcast( &temp_job->status_cond);
+							fsd_cond_broadcast( &self->session->wait_condition );
+						}
+						if ( temp_job )
+							temp_job->release( temp_job );
+	
+						int i = 0;
+						for(i = 0; i < 10; i++)
+						{
+							fsd_free(struct_attrl[i].value);
+						}
+						fsd_free(struct_attrl);
+						fsd_free(status.name);
+					}
+					
+					
+					ptr += n; 
+					if ( *ptr != ';' )
+					{
+						break; /* end of line */
+					}
+					field_n++;
+					++ptr;
+				}		
+
+				fsd_free(temp_date);			
+			} /* end of while getline loop */	
+			
+		}		
+		EXCEPT_DEFAULT
+		 {
+			const fsd_exc_t *e = fsd_exc_get();
+			/* Its better to exit and communicate error rather then let the application to hang */
+			fsd_log_fatal(( "Exception in reading accounting file %s: <%d:%s>. Exiting !!!", self->name, e->code(e), e->message(e) ));
+			exit(1);
+		 }
+		END_TRY
+
+		if(self->fd != -1)
+			close(self->fd);
+		fsd_log_debug(("%s - Accounting log file closed",self->name));	
+	}
+	FINALLY
+	{
+	 	fsd_log_debug(("%s - Terminated.",self->name));	
+		if(self->job == NULL)
+			fsd_mutex_unlock( &self->session->mutex ); /**/
+	}
+	END_TRY
+	
+	fsd_log_return((""));
+	return res;
 }
 
 int 
