@@ -361,7 +361,14 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 					self->state = DRMAA_PS_FAILED;
 					self->exit_status = -1;
 				}
-				self->end_time = modify_time; /* take last modify time as end time */
+				if (modify_time != 0)
+					self->end_time = modify_time; /* take last modify time as end time */
+				else
+					self->end_time = time(NULL);
+				
+				if (self->start_time == 0)
+					self->start_time = self->end_time;
+
 				break;
 			case 'E': /* Job is exiting after having run. - MM: ignore exiting state (transient state) - outputs might have not been transfered yet, 
 					MM2: mark job as running if current job status is undetermined - fix "ps after job was ripped" */
