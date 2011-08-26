@@ -123,7 +123,7 @@ pbsdrmaa_wifexited(
 		char *error_diagnosis, size_t error_diag_len
 		)
 {
-	*exited = (stat <= 125);
+	*exited = (stat <= 125) && (stat != -1);
 	return DRMAA_ERRNO_SUCCESS;
 }
 
