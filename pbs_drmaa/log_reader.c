@@ -994,10 +994,13 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 									case FLD_MSG_ACC_ETIME:
 										struct_attrl[msg_field_n].name = ATTR_etime;
 										break; 
-										
+#ifndef PBS_PROFESSIONAL		
 									case FLD_MSG_ACC_START:
 										struct_attrl[msg_field_n].name = ATTR_start_time;
-										break; 
+#else
+									case FLD_MSG_ACC_START:
+										struct_attrl[msg_field_n].name = ATTR_stime;
+#endif
 										
 									case FLD_MSG_ACC_OWNER:
 										struct_attrl[msg_field_n].name = ATTR_owner;

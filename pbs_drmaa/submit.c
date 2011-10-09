@@ -461,23 +461,39 @@ pbsdrmaa_submit_apply_job_environment( pbsdrmaa_submit_t *self )
 {
 	const fsd_template_t *jt = self->job_template;
 	const char *const *env_v;
+	const char *jt_wd;
+	char *wd;
+	char *env_c = NULL;
+	int ii = 0, len = 0;
 
 	env_v = jt->get_v_attr( jt, DRMAA_V_ENV);
+	jt_wd    = jt->get_attr( jt, DRMAA_WD );
+	
+	if (!jt_wd)
+	{
+		wd = fsd_getcwd();
+	}
+	else
+	{
+		wd = fsd_strdup(jt_wd);
+	}
 
 	if (env_v)
 	{
-		char *env_c = NULL;
-		int ii = 0, len = 0;
-
 		ii = 0;
 		while (env_v[ii]) {
 			len += strlen(env_v[ii]) + 1;
 			ii++;
 		}
+	}
+	
+	len+= strlen("PBS_O_WORKDIR=") + strlen(wd);
 
-		fsd_calloc(env_c, len + 1, char);
-		env_c[0] = '\0';
+	fsd_calloc(env_c, len + 1, char);
+	env_c[0] = '\0';
 
+	if (env_v)
+	{
 		ii = 0;
 		while (env_v[ii]) {
 			strcat(env_c, env_v[ii]);
@@ -485,12 +501,15 @@ pbsdrmaa_submit_apply_job_environment( pbsdrmaa_submit_t *self )
 			ii++;
 		}
 
-		env_c[strlen(env_c) -1 ] = '\0'; /*remove the last ',' */
-
-		self->pbs_job_attributes->set_attr(self->pbs_job_attributes, "Variable_List", env_c);
-
-		fsd_free(env_c);
 	}
+	
+	strcat(env_c, "PBS_O_WORKDIR=");
+	strcat(env_c, wd);
+
+	self->pbs_job_attributes->set_attr(self->pbs_job_attributes, "Variable_List", env_c);
+
+	fsd_free(env_c);
+	fsd_free(wd);
 }
 
 
