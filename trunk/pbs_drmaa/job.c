@@ -206,55 +206,63 @@ retry:
 				 session->pbs_conn, self->job_id, (void*)status ));
 		if( status == NULL )
 		 {
-			if(pbsdrmaa_job_update_status_accounting(self) == false)
-			{
-	#ifndef PBS_PROFESSIONAL
-				fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
-	#else
-	#  ifndef PBS_PROFESSIONAL_NO_LOG
-				fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
-	#  else
-				fsd_log_error(("pbs_statjob error: %d", pbs_errno));
-	#  endif
-	#endif
 
-				/**/
+#ifndef PBS_PROFESSIONAL
+			fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
+#else
+#  ifndef PBS_PROFESSIONAL_NO_LOG
+			fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
+#  else
+			fsd_log_error(("pbs_statjob error: %d", pbs_errno));
+#  endif
+#endif
 
-				switch( pbs_errno )
-				 {
-					case PBSE_UNKJOBID:
-						break;
-					case PBSE_PROTOCOL:
-					case PBSE_EXPIRED:
-						if ( session->pbs_conn >= 0 )
-							pbs_disconnect( session->pbs_conn );
-						sleep(1);
-						session->pbs_conn = pbs_connect( session->super.contact );
-						if( session->pbs_conn < 0 )
-							pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-						else 
-						 {
-							fsd_log_error(("retry:"));
-							goto retry;
-						 }
-					default:
-						pbsdrmaa_exc_raise_pbs( "pbs_statjob" );
-						break;
-					case 0:  /* ? */
-						fsd_exc_raise_code( FSD_ERRNO_INTERNAL_ERROR );
-						break;
-				 }
+			switch( pbs_errno )
+			 {
+				case PBSE_UNKJOBID:
+					break;
+				case PBSE_PROTOCOL:
+				case PBSE_EXPIRED:
+					if ( session->pbs_conn >= 0 )
+						pbs_disconnect( session->pbs_conn );
+					sleep(1);
+					session->pbs_conn = pbs_connect( session->super.contact );
+					if( session->pbs_conn < 0 )
+						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+					else
+					 {
+						fsd_log_error(("retry:"));
+						goto retry;
+					 }
+				default:
+					pbsdrmaa_exc_raise_pbs( "pbs_statjob" );
+					break;
+				case 0:  /* ? */
+					fsd_exc_raise_code( FSD_ERRNO_INTERNAL_ERROR );
+					break;
 			 }
+
 		 }
 
 		conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
+
+		if(pbsdrmaa_job_update_status_accounting(self) == false)
+
 
 		if( status != NULL )
 		 {
 			((pbsdrmaa_job_t*)self)->update( self, status );
 		 }
 		else if( self->state < DRMAA_PS_DONE )
+		 {
+#ifndef PBS_PROFESSIONAL
+			/*best effort call*/
+			if (pbsdrmaa_job_update_status_accounting(self) == false)
+				self->on_missing( self );
+#else
 			self->on_missing( self );
+#endif
+		 }
 	 }
 	FINALLY
 	 {
