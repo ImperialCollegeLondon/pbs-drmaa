@@ -78,6 +78,25 @@ fsd_job_id_cmp(const char *s1, const char *s2);
 int 
 pbsdrmaa_date_compare(const void *a, const void *b) ;
 
+/*
+ * Snippets from log files
+ *
+ * PBS Pro
+ *
+10/11/2011 14:43:29;0008;Server@nova;Job;2127218.nova;Job Queued at request of mamonski@endor.wcss.wroc.pl, owner = mamonski@endor.wcss.wroc.pl, job name = STDIN, queue = normal
+10/11/2011 14:43:31;0008;Server@nova;Job;2127218.nova;Job Modified at request of Scheduler@nova.wcss.wroc.pl
+10/11/2011 14:43:31;0008;Server@nova;Job;2127218.nova;Job Run at request of Scheduler@nova.wcss.wroc.pl on exec_vnode (wn698:ncpus=3:mem=2048000kb)+(wn700:ncpus=3:mem=2048000kb)
+10/11/2011 14:43:31;0008;Server@nova;Job;2127218.nova;Job Modified at request of Scheduler@nova.wcss.wroc.pl
+10/11/2011 14:43:32;0010;Server@nova;Job;2127218.nova;Exit_status=0 resources_used.cpupercent=0 resources_used.cput=00:00:00 resources_used.mem=1768kb resources_used.ncpus=6 resources_used.vmem=19228kb resources_used.walltime=00:00:01
+
+ *
+ * Torque
+ *
+10/11/2011 14:47:59;0008;PBS_Server;Job;15545337.batch.grid.cyf-kr.edu.pl;Job Queued at request of plgmamonski@ui.cyf-kr.edu.pl, owner = plgmamonski@ui.cyf-kr.edu.pl, job name = STDIN, queue = l_short
+10/11/2011 14:48:23;0008;PBS_Server;Job;15545337.batch.grid.cyf-kr.edu.pl;Job Run at request of root@batch.grid.cyf-kr.edu.pl
+10/11/2011 14:48:24;0010;PBS_Server;Job;15545337.batch.grid.cyf-kr.edu.pl;Exit_status=0 resources_used.cput=00:00:00 resources_used.mem=720kb resources_used.vmem=13308kb resources_used.walltime=00:00:00
+
+ */
 pbsdrmaa_log_reader_t * 
 pbsdrmaa_log_reader_new ( fsd_drmaa_session_t *session, fsd_job_t *job )
 {
@@ -262,7 +281,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0) 			
 			{
 				const char *volatile ptr = line;
-  				char field[256] = "";
+				char field[256] = "";
 				char job_id[256] = "";
 				char event[256] = "";
 				int volatile field_n = 0;
@@ -274,7 +293,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 				bool volatile log_match = false;
 				bool volatile older_job_found = false;
 				bool volatile job_found = false;
-  				char *  temp_date = NULL;
+				char * temp_date = NULL;
 				
 				struct batch_status status;
 				status.next = NULL;
@@ -285,14 +304,14 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					{
 						temp_date = fsd_strdup(field);
 					}
-					else if(field_n == FLD_EVENT && (strcmp(field,FLD_MSG_STATUS) == 0 || 
-						     		    strcmp(field,FLD_MSG_STATE) == 0 ))
+					else if(field_n == FLD_EVENT && (strcmp(field,FLD_MSG_STATUS) == 0 || strcmp(field,FLD_MSG_STATE) == 0 ))
 					{
 						/* event described by log line*/
-						if(strlcpy(event, field,sizeof(event)) > sizeof(event)) {
+						if(strlcpy(event, field,sizeof(event)) > sizeof(event))
+						{
 							fsd_log_error(("%s - strlcpy error",self->name));
 						}
-						event_match = true;									
+						event_match = true;
 					}
 					else if(event_match && field_n == FLD_ID)
 					{	
@@ -350,12 +369,20 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					else if(job_id_match && field_n == FLD_MSG)
 					{						
 						/* parse msg - depends on FLD_EVENT */
-						struct attrl struct_resource_cput,struct_resource_mem,struct_resource_vmem,
-							struct_resource_walltime, struct_status, struct_state, struct_start_time,struct_mtime, struct_queue, struct_account_name;	
+						struct attrl struct_resource_cput,
+							struct_resource_mem,
+							struct_resource_vmem,
+							struct_resource_walltime,
+							struct_status,
+							struct_state,
+							struct_start_time,
+							struct_mtime,
+							struct_queue,
+							struct_account_name;
 						
 						bool state_running = false;
 
-						memset(&struct_status,0,sizeof(struct attrl)); /**/
+						memset(&struct_status,0,sizeof(struct attrl));
 						memset(&struct_state,0,sizeof(struct attrl));
 						memset(&struct_resource_cput,0,sizeof(struct attrl));
 						memset(&struct_resource_mem,0,sizeof(struct attrl));
@@ -374,40 +401,42 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							struct_state.next = NULL;
 							struct_state.name = "job_state";
 							if(field[0] == 'J') /* Job Queued, Job Modified, Job Run*/
-							{
+							 {
 								n = 4;
 								if(older_job_found) /* job_on_missing - older job beginning - read this file and end */
-								{
+								 {
 									self->run_flag = false;
 									fsd_log_debug(("Job_on_missing found older job beginning"));
 									fsd_free(status.name);
 									break;
-								}
-							}		
-							if(field[4] == 'M') { /* modified */
-								struct tm temp_time_tm;
-								memset(&temp_time_tm, 0, sizeof(temp_time_tm));
-								temp_time_tm.tm_isdst = -1;
+								 }
 
-								if (strptime(temp_date, "%m/%d/%Y %H:%M:%S", &temp_time_tm) == NULL) 
-								 {
-								 	fsd_log_error(("failed to parse mtime: %s", temp_date));
+								 { /* modified */
+									struct tm temp_time_tm;
+									memset(&temp_time_tm, 0, sizeof(temp_time_tm));
+									temp_time_tm.tm_isdst = -1;
+
+									if (strptime(temp_date, "%m/%d/%Y %H:%M:%S", &temp_time_tm) == NULL)
+									 {
+										fsd_log_error(("failed to parse mtime: %s (line = %s)", temp_date, line));
+									 }
+									else
+									 {
+										time_t temp_time = mktime(&temp_time_tm);
+										status.attribs = &struct_mtime;
+										struct_mtime.name = "mtime";
+										struct_mtime.next = NULL;
+										struct_mtime.value = fsd_asprintf("%lu",temp_time);
+									 }
 								 }
-								else
-								 {
-									time_t temp_time = mktime(&temp_time_tm);
-									status.attribs = &struct_mtime; 
-									struct_mtime.name = "mtime";
-									struct_mtime.next = NULL;
-									struct_mtime.value = fsd_asprintf("%lu",temp_time);
-								 }
-							}		
+							 }
+
 							/* != Job deleted and Job to be deleted*/
-							#ifdef PBS_PROFESSIONAL
+#ifdef PBS_PROFESSIONAL
 							else if	(field[4] != 't' && field[10] != 'd') {
-							#else	 	
+#else
 							else if(field[4] != 'd') {
-							#endif 
+#endif
 
 								if ((struct_state.value = fsd_asprintf("%c",field[n]) ) == NULL ) { /* 4 first letter of state */
 									fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"%s - Memory allocation wasn't possible",self->name);
@@ -421,9 +450,9 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								struct_status.value = fsd_strdup("-1");
 								struct_status.next = NULL;
 								struct_state.next = &struct_status;
-								struct_state.value = fsd_strdup("C");								
+								struct_state.value = fsd_strdup("C");
 							}
-						} 						     
+						}
 						else /*if (strcmp(event,FLD_MSG_STATUS) == 0 )*/
 						{
 							/* exit status and rusage */
@@ -475,21 +504,19 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 										struct_resource_walltime.value  = fsd_strdup(strchr(msg,'=')+1);
 										break; 
 								}
-							      
+
 								ptr2 += n2; 
 								msg_field_n++;
 								if ( *ptr2 != ' ' )
-							      	 {
 									 break; 
-							  	 }
-							 	++ptr2;						
-							 }
+								++ptr2;
+							}
 							struct_state.value = fsd_strdup("C");	/* we got exit_status so we say that it has completed */
 							fsd_log_info(("WT - job %s found as finished on %u", temp_job->job_id, (unsigned int)time(NULL)));
 						}						
 						 
 						if(self->job == NULL) /* wait_thread */
-						{ 
+						{
 							if ( state_running )
 							{
 								fsd_log_debug(("WT - forcing update of job: %s", temp_job->job_id ));
@@ -509,12 +536,12 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								fsd_log_debug(("%s - updating job: %s",self->name, temp_job->job_id ));							
 								pbsjob->update( temp_job, &status );
 							}
-						 }
-						 else if( job_found ) /* job_on_missing */
-						 {
+						}
+						else if( job_found ) /* job_on_missing */
+						{
 							fsd_log_debug(("Job_on_missing - updating job: %s", self->job->job_id ));							
 							pbsjob->update( self->job, &status );
-						 }
+						}
 						
 						if(self->job == NULL)
 						{
@@ -540,7 +567,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					}
 					else if(field_n == FLD_EVENT && strcmp(field,FLD_MSG_LOG) == 0)
 					{
-						log_event = true;					
+						log_event = true;
 					}
 					else if (log_event && field_n == FLD_ID && strcmp(field,"Log") == 0 )
 					{
@@ -574,10 +601,10 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 				fsd_mutex_unlock( &self->session->mutex );			
 				
 				FD_ZERO(&log_fds);
-    				FD_SET(self->fd, &log_fds);
+				FD_SET(self->fd, &log_fds);
 
 				timeout_tv.tv_sec = 1;
-    				timeout_tv.tv_usec = 0;
+				timeout_tv.tv_usec = 0;
 
 				/* ignore return value - the next get line call will handle IO errors */
 				(void)select(1, &log_fds, NULL, NULL, &timeout_tv);
@@ -588,12 +615,12 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 			}
 		}		
 		EXCEPT_DEFAULT
-		 {
+		{
 			const fsd_exc_t *e = fsd_exc_get();
 			/* Its better to exit and communicate error rather then let the application to hang */
 			fsd_log_fatal(( "Exception in wait thread %s: <%d:%s>. Exiting !!!", self->name, e->code(e), e->message(e) ));
 			exit(1);
-		 }
+		}
 		END_TRY
 
 		if(self->fd != -1)
@@ -693,9 +720,9 @@ pbsdrmaa_read_line_wait_thread ( pbsdrmaa_log_reader_t * self, char * line, char
 int 
 pbsdrmaa_date_compare(const void *a, const void *b) 
 {
-   const char *ia = *(const char **) a;
-   const char *ib = *(const char **) b;
-   return strcmp(ib, ia);
+	const char *ia = *(const char **) a;
+	const char *ib = *(const char **) b;
+	return strcmp(ib, ia);
 }
 
 void
@@ -1021,23 +1048,22 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 									struct_attrl[msg_field_n].next = NULL;
 									break;
 								}
-							      
+
 								ptr2 += n2; 
 								msg_field_n++;
 								if ( *ptr2 != ' ' )
-							      	 {
-									 break; 
-							  	 }
-							 	++ptr2;						
-							 }
+									break;
+
+								++ptr2;
+							}
 						}						
-						 
-					    if( job_found && status.attribs != NULL) 
-						 {
+
+						if( job_found && status.attribs != NULL)
+						{
 							fsd_log_debug(("Accounting file - updating job: %s", self->job->job_id ));					
 							pbsjob->update( self->job, &status );
 							res = true;
-						 }
+						}
 						
 						if(self->job == NULL)
 						{
