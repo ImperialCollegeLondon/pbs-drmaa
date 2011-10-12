@@ -246,8 +246,6 @@ retry:
 
 		conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
 
-		if(pbsdrmaa_job_update_status_accounting(self) == false)
-
 
 		if( status != NULL )
 		 {
@@ -326,12 +324,21 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 				if (!self->project)
 					self->project = fsd_strdup(i->value);
 				break;
+#ifndef PBS_PROFESSIONAL
 			case PBSDRMAA_ATTR_EXECUTION_HOST:
 				if (!self->execution_hosts) {
 					fsd_log_debug(("execution_hosts = %s", i->value));
 					self->execution_hosts = fsd_strdup(i->value);
 				}
 				break;
+#else
+			case PBSDRMAA_ATTR_EXECUTION_VNODE:
+				if (!self->execution_hosts) {
+					fsd_log_debug(("execution_hosts = %s", i->value));
+					self->execution_hosts = fsd_strdup(i->value);
+				}
+				break;
+#endif
 			case PBSDRMAA_ATTR_START_TIME:
 				{
 				  long unsigned int start_time;

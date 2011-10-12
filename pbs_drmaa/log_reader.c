@@ -259,7 +259,7 @@ enum field_msg_accounting
 bool 
 pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 {
-	pbsdrmaa_job_t *pbsjob = (pbsdrmaa_job_t*) self->job;	
+	pbsdrmaa_job_t *pbsjob = (pbsdrmaa_job_t*) self->job;
 	fsd_job_t *volatile temp_job = NULL;
 		
 	fsd_log_enter((""));
@@ -278,7 +278,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 			
 			self->select_file(self);
 
-			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0) 			
+			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0)
 			{
 				const char *volatile ptr = line;
 				char field[256] = "";
@@ -348,7 +348,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 									older_job_found = false;
 									self->run_flag = false;
 									job_id_match = true; 
-									status.name = fsd_strdup(self->job->job_id);									
+									status.name = fsd_strdup(self->job->job_id);
 								}
 								else if ( !job_found && diff >= 1)
 								{
@@ -378,7 +378,9 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							struct_start_time,
 							struct_mtime,
 							struct_queue,
-							struct_account_name;
+							struct_account_name,
+							struct_exec_vnode;
+						struct attrl *last_attr = NULL;
 						
 						bool state_running = false;
 
@@ -392,6 +394,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						memset(&struct_mtime,0,sizeof(struct attrl));
 						memset(&struct_queue,0,sizeof(struct attrl));
 						memset(&struct_account_name,0,sizeof(struct attrl));
+						memset(&struct_exec_vnode,0,sizeof(struct attrl));
 								
 						if (strcmp(event,FLD_MSG_STATE) == 0) 
 						{
@@ -400,6 +403,8 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							status.attribs = &struct_state;
 							struct_state.next = NULL;
 							struct_state.name = "job_state";
+							last_attr = &struct_state;
+
 							if(field[0] == 'J') /* Job Queued, Job Modified, Job Run*/
 							 {
 								n = 4;
@@ -423,7 +428,8 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 									else
 									 {
 										time_t temp_time = mktime(&temp_time_tm);
-										status.attribs = &struct_mtime;
+										last_attr->next = &struct_mtime;
+										last_attr = &struct_mtime;
 										struct_mtime.name = "mtime";
 										struct_mtime.next = NULL;
 										struct_mtime.value = fsd_asprintf("%lu",temp_time);
@@ -433,25 +439,40 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 
 							/* != Job deleted and Job to be deleted*/
 #ifdef PBS_PROFESSIONAL
-							else if	(field[4] != 't' && field[10] != 'd') {
+							else if	(field[4] != 't' && field[10] != 'd')
+							 {
 #else
-							else if(field[4] != 'd') {
+							else if (field[4] != 'd')
+							 {
 #endif
+								struct_state.value = fsd_asprintf("%c",field[n]);
 
-								if ((struct_state.value = fsd_asprintf("%c",field[n]) ) == NULL ) { /* 4 first letter of state */
-									fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"%s - Memory allocation wasn't possible",self->name);
-								}
-								if(struct_state.value[0] == 'R'){
+								if(struct_state.value[0] == 'R')
+								 {
 									state_running = true;
-								}
-							}
-							else { /* job terminated - pbs drmaa detects failed as completed with exit_status !=0, aborted with status -1*/
+#ifdef PBS_PROFESSIONAL
+									{
+										char *p_vnode = NULL;
+										if (p_vnode = strstr(field, "exec_vnode"))
+										 {
+											last_attr->next = &struct_exec_vnode;
+											last_attr =  &struct_exec_vnode;
+											struct_exec_vnode.name = "exec_vnode";
+											struct_exec_vnode.next = NULL;
+											struct_exec_vnode.value = fsd_strdup(p + 11);
+										 }
+									}
+#endif
+								 }
+							 }
+							else
+							 { /* job terminated - pbs drmaa detects failed as completed with exit_status !=0, aborted with status -1*/
 								struct_status.name = "exit_status";
 								struct_status.value = fsd_strdup("-1");
 								struct_status.next = NULL;
 								struct_state.next = &struct_status;
 								struct_state.value = fsd_strdup("C");
-							}
+							 }
 						}
 						else /*if (strcmp(event,FLD_MSG_STATUS) == 0 )*/
 						{
@@ -533,13 +554,13 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							}
 							else
 							{
-								fsd_log_debug(("%s - updating job: %s",self->name, temp_job->job_id ));							
+								fsd_log_debug(("%s - updating job: %s",self->name, temp_job->job_id ));
 								pbsjob->update( temp_job, &status );
 							}
 						}
 						else if( job_found ) /* job_on_missing */
 						{
-							fsd_log_debug(("Job_on_missing - updating job: %s", self->job->job_id ));							
+							fsd_log_debug(("Job_on_missing - updating job: %s", self->job->job_id ));
 							pbsjob->update( self->job, &status );
 						}
 						
@@ -574,7 +595,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						log_match = true;
 						log_event = false;
 					}
-					else if( self->job == NULL && log_match && field_n == FLD_MSG && strncmp(field,"Log closed",10) == 0) 
+					else if( self->job == NULL && log_match && field_n == FLD_MSG && strncmp(field,"Log closed",10) == 0)
 					{
 						fsd_log_debug(("%s - Date changed. Closing log file",self->name));
 						self->date_changed = true;
@@ -590,15 +611,15 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					++ptr;
 				}		
 
-				fsd_free(temp_date);			
-			} /* end of while getline loop */			
+				fsd_free(temp_date);
+			} /* end of while getline loop */
 			
 			if(self->job == NULL)
 			{
 				struct timeval timeout_tv;
 				fd_set log_fds;
 	
-				fsd_mutex_unlock( &self->session->mutex );			
+				fsd_mutex_unlock( &self->session->mutex );
 				
 				FD_ZERO(&log_fds);
 				FD_SET(self->fd, &log_fds);
@@ -873,7 +894,7 @@ pbsdrmaa_select_file_accounting ( pbsdrmaa_log_reader_t * self )
 	if(self->fd != -1)
 		close(self->fd);
 
-	fsd_log_debug(("Accounting Log file: %s",log_path));				
+	fsd_log_debug(("Accounting Log file: %s",log_path));
 
 	if((self->fd = open(log_path,O_RDONLY) ) == -1 )
 	{
@@ -925,7 +946,7 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 			self->select_file(self);
 			
 			if(self->fd != -1) 					
-			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0) 			
+			while ((self->read_line(self, line,buffer, sizeof(line), &idx,&end_idx,&line_idx)) > 0)
 			{
 				const char *volatile ptr = line;
   				char field[256] = "";
@@ -964,7 +985,7 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 									fsd_log_debug(("Accounting found job: %s",self->job->job_id));
 									job_found = true;
 									job_id_match = true; 
-									status.name = fsd_strdup(self->job->job_id);									
+									status.name = fsd_strdup(self->job->job_id);
 								}	
 						}
 						END_TRY	
@@ -972,7 +993,8 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 					else if(job_id_match && field_n == FLD_ACC_MSG)
 					{					
 						struct attrl * struct_attrl = calloc(10,sizeof(struct attrl));
-											     
+						int i;
+
 						if(field[0] == 'q')
 						{
 							status.attribs = &struct_attrl[0];
@@ -986,7 +1008,7 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 							const char *ptr2 = field;
 							char  msg[ 256 ] = "";
 							int n2 = 0;
-							int msg_field_n = 0;	
+							int msg_field_n = 0;
 				
 							status.attribs = &struct_attrl[0];
 
@@ -995,7 +1017,7 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 								switch(msg_field_n) 
 								{
 									case FLD_MSG_ACC_USER:
-										struct_attrl[msg_field_n].name = ATTR_euser;									
+										struct_attrl[msg_field_n].name = ATTR_euser;
 										break;
 
 									case FLD_MSG_ACC_GROUP:
@@ -1060,7 +1082,7 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 
 						if( job_found && status.attribs != NULL)
 						{
-							fsd_log_debug(("Accounting file - updating job: %s", self->job->job_id ));					
+							fsd_log_debug(("Accounting file - updating job: %s", self->job->job_id ));
 							pbsjob->update( self->job, &status );
 							res = true;
 						}
@@ -1073,7 +1095,6 @@ pbsdrmaa_read_log_accounting( pbsdrmaa_log_reader_t * self )
 						if ( temp_job )
 							temp_job->release( temp_job );
 	
-						int i = 0;
 						for(i = 0; i < 10; i++)
 						{
 							fsd_free(struct_attrl[i].value);
