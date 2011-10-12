@@ -3,7 +3,7 @@
 /*
  *  FedStage DRMAA for PBS Pro
  *  Copyright (C) 2006-2009  FedStage Systems
- *
+ *  Copyright (C) 2011 Poznan Supercomputing and Networking Center
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
@@ -87,6 +87,7 @@ stagein, t(PBSDRMAA_ATTR_STAGEIN)
 stageout, t(PBSDRMAA_ATTR_STAGEOUT)
 # additional job and general attribute names
 exec_host, t(PBSDRMAA_ATTR_EXECUTION_HOST)
+exec_vnode, t(PBSDRMAA_ATTR_EXECUTION_VNODE)
 Job_Owner, t(PBSDRMAA_ATTR_JOB_OWNER)
 resources_used, t(PBSDRMAA_ATTR_RESOURCES_USED)
 job_state, t(PBSDRMAA_ATTR_JOB_STATE)
@@ -201,6 +202,7 @@ const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
 	{ "stagein", PBSDRMAA_ATTR_STAGEIN, false },
 	{ "stageout", PBSDRMAA_ATTR_STAGEOUT, false },
 	{ "exec_host", PBSDRMAA_ATTR_EXECUTION_HOST, false },
+	{ "exec_vnode", PBSDRMAA_ATTR_EXECUTION_VNODE, false },
 	{ "Job_Owner", PBSDRMAA_ATTR_JOB_OWNER, false },
 	{ "resources_used", PBSDRMAA_ATTR_RESOURCES_USED, false },
 	{ "job_state", PBSDRMAA_ATTR_JOB_STATE, false },
