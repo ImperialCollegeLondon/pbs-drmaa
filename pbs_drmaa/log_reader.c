@@ -439,14 +439,13 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 
 							/* != Job deleted and Job to be deleted*/
 #ifdef PBS_PROFESSIONAL
-							else if	(field[4] != 't' && field[10] != 'd')
+							if	(field[4] != 't' && field[10] != 'd')
 							 {
 #else
-							else if (field[4] != 'd')
+							if (field[4] != 'd')
 							 {
 #endif
 								struct_state.value = fsd_asprintf("%c",field[n]);
-
 								if(struct_state.value[0] == 'R')
 								 {
 									state_running = true;
