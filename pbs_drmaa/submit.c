@@ -150,25 +150,10 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 			const char *name = pbs_tmpl->by_code( pbs_tmpl, i )->name;
 			if( name  &&  name[0] != '!' && pbs_tmpl->get_attr( pbs_tmpl, name ) )
 			 {
-				struct attrl *p;
-				const char *resource;
 				const char *value;
+
 				value = pbs_tmpl->get_attr( pbs_tmpl, name );
-				fsd_malloc( p, struct attrl );
-				memset( p, 0, sizeof(struct attrl) );
-				p->next = pbs_attr;
-				pbs_attr = p;
-				resource = strchr( name, '.' );
-				if( resource )
-				 {
-					p->name = fsd_strndup( name, resource-name );
-					p->resource = fsd_strdup( resource+1 );
-				 }
-				else
-					p->name = fsd_strdup( name );
-				fsd_log_debug(("set attr: %s = %s", name, value));
-				p->value = fsd_strdup( value );
-				p->op = SET;
+				pbs_attr = pbsdrmaa_add_attr( pbs_attr, name, value );
 			 }
 		 }
 

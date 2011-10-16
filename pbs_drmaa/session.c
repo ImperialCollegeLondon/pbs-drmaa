@@ -519,7 +519,7 @@ pbsdrmaa_session_wait_thread( fsd_drmaa_session_t *self )
 	
 	TRY
 	{	
-		log_reader = pbsdrmaa_log_reader_new( self, NULL);
+		log_reader = pbsdrmaa_log_reader_new( self );
 		log_reader->read_log( log_reader );
 	}
 	FINALLY

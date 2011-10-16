@@ -58,14 +58,8 @@ pbsdrmaa_job_on_missing( fsd_job_t *self );
 void
 pbsdrmaa_job_on_missing_standard( fsd_job_t *self );
 
-void
-pbsdrmaa_job_on_missing_log_based( fsd_job_t *self );
-
 static void
 pbsdrmaa_job_update( fsd_job_t *self, struct batch_status* );
-
-bool
-pbsdrmaa_job_update_status_accounting( fsd_job_t *self );
 
 
 fsd_job_t *
@@ -253,13 +247,7 @@ retry:
 		 }
 		else if( self->state < DRMAA_PS_DONE )
 		 {
-#ifndef PBS_PROFESSIONAL
-			/*best effort call*/
-			if (pbsdrmaa_job_update_status_accounting(self) == false)
-				self->on_missing( self );
-#else
 			self->on_missing( self );
-#endif
 		 }
 	 }
 	FINALLY
@@ -304,7 +292,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 				pbs_state = i->value[0];				
 				break;
 			case PBSDRMAA_ATTR_EXIT_STATUS:
-				exit_status = atoi( i->value );
+				exit_status = fsd_atoi( i->value );
 				break;
 			case PBSDRMAA_ATTR_RESOURCES_USED:
 				if( !strcmp( i->resource, "cput" ) )
@@ -452,7 +440,7 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 	if( pbssession->pbs_home == NULL || pbssession->super.wait_thread_started )
 		pbsdrmaa_job_on_missing_standard( self );	
 	else
-		pbsdrmaa_job_on_missing_log_based( self );	
+		pbsdrmaa_job_on_missing_standard( self ); /* TODO: try to provide implementation that uses accounting/server log files */
 }
 
 void
@@ -505,51 +493,3 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 				drmaa_job_ps_to_str(self->state), self->exit_status ));
 }
 
-void
-pbsdrmaa_job_on_missing_log_based( fsd_job_t *self )
-{
-	fsd_drmaa_session_t *session = self->session;
-	pbsdrmaa_log_reader_t *log_reader = NULL;
-	
-	fsd_log_enter(( "({job_id=%s})", self->job_id ));
-	fsd_log_info(( "Job %s missing from DRM queue", self->job_id ));
-	
-	TRY
-	{	
-		log_reader = pbsdrmaa_log_reader_new( session, self);
-		log_reader->read_log( log_reader ); 
-	}
-	FINALLY
-	{
-		pbsdrmaa_log_reader_destroy( log_reader );
-	}
-	END_TRY
-
-	fsd_log_return(( "; job_ps=%s, exit_status=%d",
-				drmaa_job_ps_to_str(self->state), self->exit_status ));	
-}
-
-bool
-pbsdrmaa_job_update_status_accounting( fsd_job_t *self )
-{
-	fsd_drmaa_session_t *session = self->session;
-	pbsdrmaa_log_reader_t *log_reader = NULL;
-	bool res = false;
-	
-	fsd_log_enter(( "({job_id=%s})", self->job_id ));
-	fsd_log_info(( "Reading job %s info from accounting file", self->job_id ));
-	
-	TRY
-	{	
-		log_reader = pbsdrmaa_log_reader_accounting_new( session, self);
-		bool res = log_reader->read_log( log_reader ); 
-	}
-	FINALLY
-	{
-		pbsdrmaa_log_reader_destroy( log_reader );
-	}
-	END_TRY
-
-	fsd_log_return((""));
-	return res;
-}
