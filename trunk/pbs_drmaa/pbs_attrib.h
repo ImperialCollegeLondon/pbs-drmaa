@@ -80,6 +80,7 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_START_TIME             "start_time"
 #define PBSDRMAA_EXTENSION              "extension"
 #define PBSDRMAA_SUBMIT_ARGS            "submit_args"
+#define PBSDRMAA_MTIME                  "mtime"
 
 
 typedef enum {

@@ -24,62 +24,40 @@
 #	include <config.h>
 #endif
 
+#include <stdio.h>
+
 #include <drmaa_utils/job.h>
 #include <drmaa_utils/session.h>
 
 typedef struct pbsdrmaa_log_reader_s pbsdrmaa_log_reader_t;
 
 pbsdrmaa_log_reader_t * 
-pbsdrmaa_log_reader_new ( fsd_drmaa_session_t * session, fsd_job_t * job );
-
-pbsdrmaa_log_reader_t * 
-pbsdrmaa_log_reader_accounting_new ( fsd_drmaa_session_t * session, fsd_job_t * job );
+pbsdrmaa_log_reader_new ( fsd_drmaa_session_t * session);
 
 void
 pbsdrmaa_log_reader_destroy ( pbsdrmaa_log_reader_t * self );
 
 struct pbsdrmaa_log_reader_s {
 	fsd_drmaa_session_t *volatile session ;
-	fsd_job_t *volatile job;
 	
-	bool (*
-	read_log) ( pbsdrmaa_log_reader_t * self );
+	void (*read_log) ( pbsdrmaa_log_reader_t * self );
 	
-	void (*
-	select_file) ( pbsdrmaa_log_reader_t * self );
+	void (*select_file) ( pbsdrmaa_log_reader_t * self );
 	
-	/* line - read line, buffer - keeps read but not returned lines, idx, end_idx and line_idx values needed to be kept outside the function */
-	ssize_t (*
-	read_line) ( pbsdrmaa_log_reader_t * self, char * line, char * buffer, ssize_t size, int * idx, int * end_idx, int * line_idx );
-	
-	/* specifies if function should run */
+	/* determines if function should run */
 	bool run_flag;
 	
 	/* date of current file */
 	time_t t;	
 	
-	/* for job_on_missing  - available log files */
-	char ** log_files;
-	
-	/* for job_on_missing - number of log files */
-	int log_files_number;
-	
-	/* log file descriptor */
-	int volatile fd;
-	
-	/* for job_on_missing - log file size when function was ran */
-	off_t log_file_initial_size;
-	
-	/* for job_on_missing - read lines size */
-	off_t log_file_read_size;
+	/* log file handle */
+	FILE *fhandle;
 	
 	/* for wait_thread - day changed */
 	bool volatile date_changed;
 	
 	/* for wait_thread - log file first open */
 	bool volatile first_open;	
-	
-	char * name;
 };
 
 #endif /* __PBS_DRMAA__LOG_READER_H */
