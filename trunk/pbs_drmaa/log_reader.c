@@ -216,6 +216,8 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					 {
 						fsd_log_debug(("WT - Date changed. Closing log file"));
 						self->date_changed = true;
+						fsd_free(line);
+						break;
 					 }
 
 					for (field_token = strtok_r(line, ";", &tok_ctx); field_token; field_token = strtok_r(NULL, ";", &tok_ctx), field_id++)
@@ -231,7 +233,10 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							else if (strncmp(field_token, PBSDRMAA_FLD_MSG_0010, 4) == 0)
 								event_type = pbsdrmaa_event_0010;
 							else
+							 {
+								fsd_free(line);
 								break; /*we are interested only in the above log messages */
+							 }
 						 }
 						else if ( field_id == PBSDRMAA_FLD_ID_SRC)
 						 {
@@ -240,7 +245,10 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						else if (field_id  == PBSDRMAA_FLD_ID_OBJ_TYPE)
 						 {
 							if (strncmp(field_token, "Job", 3) != 0)
+							 {
+								fsd_free(line);
 								break; /* we are interested only in job events */
+							 }
 						 }
 						else if (field_id == PBSDRMAA_FLD_ID_OBJ_ID)
 						 {
@@ -257,6 +265,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								else
 								 {
 									fsd_log_debug(("WT - Unknown job: %s", event_jobid)); /* Not a DRMAA job */
+									fsd_free(line);
 									break;
 								 }
 							 }
@@ -277,18 +286,25 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								 */
 								char *p_queue = NULL;
 
+								fsd_log_info(("WT - Detected queued of job %s", job->job_id));
+
 								if ((p_queue = strstr(msg,"queue =")) == NULL)
 									fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"No queue attribute found in log line = %s", line);
 
-							/* != Job deleted and Job to be deleted*/
-#ifdef PBS_PROFESSIONAL
-							if	(field[4] != 't' && field[10] != 'd')
-							 {
-#else
-							if (field[4] != 'd')
-							 {
-#endif
-								struct_state.value = fsd_asprintf("%c",field[n]);
+								attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "Q");
+								attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_QUEUE, p_queue + 7);
+							 }
+							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job Run", 7) == 0)
+							{
+								/*
+								 * Running
+								 * Torque: 10/11/2011 14:48:23;0008;PBS_Server;Job;15545337.batch.grid.cyf-kr.edu.pl;Job Run at request of root@batch.grid.cyf-kr.edu.pl
+								 * PBS Pro: 10/11/2011 14:43:31;0008;Server@nova;Job;2127218.nova;Job Run at request of Scheduler@nova.wcss.wroc.pl on exec_vnode (wn698:ncpus=3:mem=2048000kb)+(wn700:ncpus=3:mem=2048000kb)
+								 */
+								char timestamp_unix[64];
+
+								fsd_log_info(("WT - Detected start of job %s", job->job_id));
+
 								(void)pbsdrmaa_parse_log_timestamp(event_timestamp, timestamp_unix, sizeof(timestamp_unix));
 
 								in_running_state = true;
@@ -321,6 +337,8 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							 */
 								char timestamp_unix[64];
 
+								fsd_log_info(("WT - Detected deletion of job %s", job->job_id));
+
 								(void)pbsdrmaa_parse_log_timestamp(event_timestamp, timestamp_unix, sizeof(timestamp_unix));
 
 								if (job->state < DRMAA_PS_RUNNING)
@@ -332,6 +350,8 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								 }
 								else
 								 {
+									job->release( job );
+									fsd_free(line);
 									break; /* job was started, ignore, wait for Exit_status message */
 								 }
 							 }
@@ -391,6 +411,8 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							 }
 							else
 							{
+								job->release( job );
+								fsd_free(line);
 								break; /* ignore other job events*/
 							}
 
@@ -434,6 +456,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					 }
 
 				 } /* end of while getline loop */
+
 
 				 { /* poll on log file */
 					struct timeval timeout_tv;
