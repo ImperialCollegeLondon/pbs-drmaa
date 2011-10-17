@@ -142,7 +142,6 @@ AC_CHECK_FUNCS([ \
 	gettimeofday \
 	localtime_r \
 	memset \
-	mkstemp \
 	setenv \
 	strcasecmp \
 	strchr \

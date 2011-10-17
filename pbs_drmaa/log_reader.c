@@ -216,8 +216,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 					 {
 						fsd_log_debug(("WT - Date changed. Closing log file"));
 						self->date_changed = true;
-						fsd_free(line);
-						break;
+						goto cleanup;
 					 }
 
 					for (field_token = strtok_r(line, ";", &tok_ctx); field_token; field_token = strtok_r(NULL, ";", &tok_ctx), field_id++)
@@ -234,8 +233,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								event_type = pbsdrmaa_event_0010;
 							else
 							 {
-								fsd_free(line);
-								break; /*we are interested only in the above log messages */
+								goto cleanup; /*we are interested only in the above log messages */
 							 }
 						 }
 						else if ( field_id == PBSDRMAA_FLD_ID_SRC)
@@ -246,31 +244,31 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						 {
 							if (strncmp(field_token, "Job", 3) != 0)
 							 {
-								fsd_free(line);
-								break; /* we are interested only in job events */
+								goto cleanup; /* we are interested only in job events */
 							 }
 						 }
 						else if (field_id == PBSDRMAA_FLD_ID_OBJ_ID)
 						 {
 							const char *event_jobid = field_token;
-
-							TRY
+							
+							if (!isdigit(event_jobid[0]))
 							 {
-								job = self->session->get_job( self->session, event_jobid );
-
-								if( job )
-								 {
-									fsd_log_debug(("WT - Found job event: %s", event_jobid));
-								 }
-								else
-								 {
-									fsd_log_debug(("WT - Unknown job: %s", event_jobid)); /* Not a DRMAA job */
-									fsd_free(line);
-									break;
-								 }
+								fsd_log_debug(("WT - Invalid job: %s", event_jobid)); 
+								goto cleanup;
 							 }
-							END_TRY
-						 }
+
+							job = self->session->get_job( self->session, event_jobid );
+
+							if( job )
+							 {
+								fsd_log_debug(("WT - Found job event: %s", event_jobid));
+							 }
+							else
+							 {
+								fsd_log_debug(("WT - Unknown job: %s", event_jobid)); /* Not a DRMAA job */
+								goto cleanup;
+							 }
+					 	 }
 						else if (field_id == PBSDRMAA_FLD_ID_MSG)
 						 {
 							char *msg = field_token;
@@ -286,7 +284,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								 */
 								char *p_queue = NULL;
 
-								fsd_log_info(("WT - Detected queued of job %s", job->job_id));
+								fsd_log_info(("WT - Detected queuing of job %s", job->job_id));
 
 								if ((p_queue = strstr(msg,"queue =")) == NULL)
 									fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"No queue attribute found in log line = %s", line);
@@ -350,12 +348,10 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								 }
 								else
 								 {
-									job->release( job );
-									fsd_free(line);
-									break; /* job was started, ignore, wait for Exit_status message */
+									goto cleanup; /* job was started, ignore, wait for Exit_status message */
 								 }
 							 }
-							else if (event_type == pbsdrmaa_event_0010 && strncmp(msg, "Exit_status=", 12))
+							else if (event_type == pbsdrmaa_event_0010 && (strncmp(msg, "Exit_status=", 12) == 0))
 							 {
 							/* Completed:
 							 * PBS Pro: 10/11/2011 14:43:32;0010;Server@nova;Job;2127218.nova;Exit_status=0 resources_used.cpupercent=0 resources_used.cput=00:00:00 resources_used.mem=1768kb resources_used.ncpus=6 resources_used.vmem=19228kb resources_used.walltime=00:00:01
@@ -374,28 +370,28 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								 {
 									if (strncmp(token, "Exit_status=", 12) == 0)
 									 {
-										token[12] = '\0';
+										token[11] = '\0';
 										attribs = pbsdrmaa_add_attr(attribs, token, token + 12);
 										fsd_log_info(("WT - Completion of job %s (Exit_status=%s) detected after %d seconds", job->job_id, token+12, (int)(time(NULL) - timestamp_time_t) ));
 									 }
 									else if (strncmp(token, "resources_used.cput=", 20) == 0)
 									 {
-										token[20] = '\0';
+										token[19] = '\0';
 										attribs = pbsdrmaa_add_attr(attribs, token, token + 20);
 									 }
 									else if (strncmp(token, "resources_used.mem=", 19) == 0)
 									 {
-										token[19] = '\0';
+										token[18] = '\0';
 										attribs = pbsdrmaa_add_attr(attribs, token, token + 19);
 									 }
 									else if (strncmp(token, "resources_used.vmem=", 20) == 0)
 									 {
-										token[20] = '\0';
+										token[19] = '\0';
 										attribs = pbsdrmaa_add_attr(attribs, token, token + 20);
 									 }
 									else if (strncmp(token, "resources_used.walltime=", 24) == 0)
 									 {
-										token[24] = '\0';
+										token[23] = '\0';
 										attribs = pbsdrmaa_add_attr(attribs, token, token + 24);
 									 }
 								 }
@@ -411,9 +407,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							 }
 							else
 							{
-								job->release( job );
-								fsd_free(line);
-								break; /* ignore other job events*/
+								goto cleanup; /* ignore other job events*/
 							}
 
 							if ( in_running_state )
@@ -444,16 +438,18 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							fsd_cond_broadcast( &job->status_cond);
 							fsd_cond_broadcast( &self->session->wait_condition );
 
-							if ( job )
-								job->release( job );
-
-							fsd_free(line); /* TODO free on exception */
 						 }
 						else
 						 {
 							fsd_assert(0); /*not reached */
 						 }
 					 }
+				cleanup:
+					fsd_free(line); /* TODO what about exceptions */		
+					if ( job )
+						job->release( job );
+
+
 
 				 } /* end of while getline loop */
 
@@ -469,7 +465,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 
 					timeout_tv.tv_sec = 1;
 					timeout_tv.tv_usec = 0;
-
+					fsd_log_debug(("Polling log file for %d seconds", timeout_tv.tv_sec));
 					/* ignore return value - the next get line call will handle IO errors */
 					(void)select(1, &log_fds, NULL, NULL, &timeout_tv);
 
@@ -533,7 +529,7 @@ pbsdrmaa_select_file_wait_thread ( pbsdrmaa_log_reader_t * self )
 		fsd_log_info(("Opening log file: %s",log_path));
 				
 	retry:
-		if ((self->fhandle = fopen(log_path,"")) == NULL && (num_tries > DRMAA_WAIT_THREAD_MAX_TRIES || self->first_open))
+		if ((self->fhandle = fopen(log_path,"r")) == NULL && (num_tries > DRMAA_WAIT_THREAD_MAX_TRIES || self->first_open))
 		 {
 			fsd_log_error(("Can't open log file. Verify pbs_home. Running standard wait_thread."));
 			fsd_log_error(("Remember that without keep_completed set the standard wait_thread won't provide information about job exit status"));
