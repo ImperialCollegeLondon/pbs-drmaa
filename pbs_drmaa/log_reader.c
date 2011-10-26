@@ -312,13 +312,9 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 #ifdef PBS_PROFESSIONAL
 									{
 										char *p_vnode = NULL;
-										if ((p_vnode = strstr(field, "exec_vnode")))
+										if ((p_vnode = strstr(msg, "exec_vnode")))
 										 {
-											last_attr->next = &struct_exec_vnode;
-											last_attr =  &struct_exec_vnode;
-											struct_exec_vnode.name = "exec_vnode";
-											struct_exec_vnode.next = NULL;
-											struct_exec_vnode.value = fsd_strdup(p_vnode + 11);
+											attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXECUTION_VNODE, p_vnode + 11);
 										 }
 									}
 #endif
