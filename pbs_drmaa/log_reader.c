@@ -457,7 +457,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 
 				fsd_mutex_unlock( &self->session->mutex );
 				
-				usleep(1500000); /* 500 ms - consider using inotify - but this would not work with NFS */				
+				usleep(300000); /* 300 ms - consider using inotify - but this would not work with NFS */				
 
 				fsd_mutex_lock( &self->session->mutex );
 
