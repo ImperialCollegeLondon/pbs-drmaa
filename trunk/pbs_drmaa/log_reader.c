@@ -22,6 +22,7 @@
 #endif
 
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -407,6 +408,12 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							{
 								goto cleanup; /* ignore other job events*/
 							}
+					
+							fsd_log_debug(("WT - updating job: %s", job->job_id ));
+							status.name = job->job_id;
+							status.attribs = attribs;
+
+							((pbsdrmaa_job_t *)job)->update( job, &status );
 
 							if ( in_running_state )
 							 {
@@ -422,16 +429,9 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								}
 								END_TRY
 							 }
-							else
-							 {
-								fsd_log_debug(("WT - updating job: %s", job->job_id ));
-								status.name = job->job_id;
-								status.attribs = attribs;
 
-								((pbsdrmaa_job_t *)job)->update( job, &status );
 
-								pbsdrmaa_free_attrl(attribs); /* TODO free on exception */
-							 }
+							pbsdrmaa_free_attrl(attribs); /* TODO free on exception */
 
 							fsd_cond_broadcast( &job->status_cond);
 							fsd_cond_broadcast( &self->session->wait_condition );
@@ -577,17 +577,17 @@ char *
 pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const char *job_id)
 {
 		pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*) log_reader->session;
-
 		struct tm tm;
 		time_t tm_t;
 		char *line = NULL;
-		FILE *fhandle = NULL;
 		char *exec_host = NULL;
+		char *log_path = NULL;
+		FILE *fhandle = NULL;
 
-		fsd_log_enter((""));
+		fsd_log_enter(("(job_id=%s)", job_id));
 
 		tm_t = time(NULL);
-		localtime_r(&time_t, &tm);
+		localtime_r(&tm_t, &tm);
 
 		log_path = fsd_asprintf("%s/server_priv/accounting/%04d%02d%02d", pbssession->pbs_home, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 
@@ -595,7 +595,7 @@ pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const 
 
 		if ((fhandle = fopen(log_path, "r")) == NULL)
 		 {
-			fsd_log_error("Failed to open accounting log file: %s", log_path);
+			fsd_log_error(("Failed to open accounting log file: %s", log_path));
 			fsd_free(log_path);
 			return NULL;
 		 }
@@ -606,7 +606,8 @@ pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const 
  */
 		while ((line = fsd_readline(fhandle)) != NULL)
 		 {
-			if (line[20] == 'E' && strncmp(line + 23, job_id, strlen(job_id)) == 0 )
+
+			if (line[20] == 'E'  && strncmp(line + 22, job_id, strlen(job_id)) == 0 )
 			 {
 				char *p = NULL;
 
@@ -621,9 +622,9 @@ pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const 
 				exec_host += 10;
 
 				p = exec_host;
-				while (p != ' ' && p != '\0')
+				while (*p != ' ' && *p != '\0')
 					p++;
-				p = '\0';
+				*p = '\0';
 
 				break;
 			 }
@@ -638,7 +639,7 @@ pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const 
 		 }
 		else
 		 {
-			fsd_log_error(("Could not find executions hosts for %s.", job_id))
+			fsd_log_error(("Could not find executions hosts for %s.", job_id));
 		 }
 
 		if (line)
