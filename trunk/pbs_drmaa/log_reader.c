@@ -24,7 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -397,8 +396,11 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 									char *exec_host = NULL;
 									fsd_log_info(("WT - No execution host information for job %s. Reading accounting logs...", job->job_id));
 									exec_host = pbsdrmaa_get_exec_host_from_accountig(self, job->job_id);
-									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXECUTION_HOST, exec_host);
-									fsd_free(exec_host);
+									if (exec_host)
+									 {
+										attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXECUTION_HOST, exec_host);
+										fsd_free(exec_host);
+									 }
 								 }
 							 }
 							else
@@ -574,8 +576,77 @@ pbsdrmaa_parse_log_timestamp(const char *timestamp, char *unixtime_str, size_t s
 char *
 pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const char *job_id)
 {
-	/* TODO: implement */
-	return NULL;
+		pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*) log_reader->session;
+
+		struct tm tm;
+		time_t tm_t;
+		char *line = NULL;
+		FILE *fhandle = NULL;
+		char *exec_host = NULL;
+
+		fsd_log_enter((""));
+
+		tm_t = time(NULL);
+		localtime_r(&time_t, &tm);
+
+		log_path = fsd_asprintf("%s/server_priv/accounting/%04d%02d%02d", pbssession->pbs_home, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+
+		fsd_log_info(("Opening accounting log file: %s", log_path));
+
+		if ((fhandle = fopen(log_path, "r")) == NULL)
+		 {
+			fsd_log_error("Failed to open accounting log file: %s", log_path);
+			fsd_free(log_path);
+			return NULL;
+		 }
+
+		fsd_free(log_path);
+/*
+10/27/2011 14:09:32;E;114249.grass1.man.poznan.pl;user=drmaa group=drmaa jobname=none queue=shortq ctime=1319717371 qtime=1319717371 etime=1319717371 start=1319717372 owner=drmaa@grass1.man.poznan.pl exec_host=grass4.man.poznan.pl/0 Resource_List.neednodes=1 Resource_List.nodect=1 Resource_List.nodes=1 Resource_List.walltime=02:00:00 session=28561 end=1319717372 Exit_status=0 resources_used.cput=00:00:00 resources_used.mem=0kb resources_used.vmem=0kb resources_used.walltime=00:00:00
+ */
+		while ((line = fsd_readline(fhandle)) != NULL)
+		 {
+			if (line[20] == 'E' && strncmp(line + 23, job_id, strlen(job_id)) == 0 )
+			 {
+				char *p = NULL;
+
+				fsd_log_debug(("Matched accounting log record = %s", line));
+
+				if (!(exec_host = strstr(line, "exec_host")))
+				 {
+					fsd_log_error(("Invalid accounting record: %s", exec_host));
+					break;
+				 }
+
+				exec_host += 10;
+
+				p = exec_host;
+				while (p != ' ' && p != '\0')
+					p++;
+				p = '\0';
+
+				break;
+			 }
+
+			fsd_free(line);
+		 }
+
+		if (exec_host)
+		 {
+			fsd_log_info(("Job %s was executing on hosts %s.", job_id, exec_host));
+			exec_host = fsd_strdup(exec_host);
+		 }
+		else
+		 {
+			fsd_log_error(("Could not find executions hosts for %s.", job_id))
+		 }
+
+		if (line)
+			fsd_free(line);
+
+		fclose(fhandle);
+
+		return exec_host;
 }
 
 
