@@ -671,6 +671,9 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 							pbs_attr->set_attr( pbs_attr, "Priority" , arg );
 							break;
 						case 'q' :
+							if (self->destination_queue)
+								fsd_free(self->destination_queue);
+
 							self->destination_queue = fsd_strdup( arg );
 							fsd_log_debug(("self->destination_queue = %s", self->destination_queue));
 							break;
