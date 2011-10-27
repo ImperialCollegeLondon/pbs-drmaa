@@ -320,9 +320,9 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 #endif
 							 }
 #ifndef PBS_PBS_PROFESSIONAL
-							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job deleted", 11))
+							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job deleted", 11) == 0)
 #else
-							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job to be deleted", 17))
+							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job to be deleted", 17) == 0)
 #endif
 							 {
 							/* Deleted
@@ -337,7 +337,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 
 								if (job->state < DRMAA_PS_RUNNING)
 								 {
-									fsd_log_info(("Job %s killed before entering running state (%d).", job->job_id, job->state));
+									fsd_log_info(("WT - Job %s killed before entering running state (%d).", job->job_id, job->state));
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "C");
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_MTIME, timestamp_unix);
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXIT_STATUS, "-2");
@@ -367,7 +367,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 									if (strncmp(token, "Exit_status=", 12) == 0)
 									 {
 										token[11] = '\0';
-										attribs = pbsdrmaa_add_attr(attribs, token, token + 12);
+										attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXIT_STATUS, token + 12);
 										fsd_log_info(("WT - Completion of job %s (Exit_status=%s) detected after %d seconds", job->job_id, token+12, (int)(time(NULL) - timestamp_time_t) ));
 									 }
 									else if (strncmp(token, "resources_used.cput=", 20) == 0)
@@ -450,25 +450,14 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 				 } /* end of while getline loop */
 
 
-				 { /* poll on log file */
-					struct timeval timeout_tv;
-					fd_set log_fds;
 
-					fsd_mutex_unlock( &self->session->mutex );
-					
-					FD_ZERO(&log_fds);
-					FD_SET(fileno(self->fhandle), &log_fds);
+				fsd_mutex_unlock( &self->session->mutex );
+				
+				usleep(1500000); /* 500 ms - consider using inotify - but this would not work with NFS */				
 
-					timeout_tv.tv_sec = 1;
-					timeout_tv.tv_usec = 0;
-					fsd_log_debug(("Polling log file for %d seconds", timeout_tv.tv_sec));
-					/* ignore return value - the next get line call will handle IO errors */
-					(void)select(1, &log_fds, NULL, NULL, &timeout_tv);
+				fsd_mutex_lock( &self->session->mutex );
 
-					fsd_mutex_lock( &self->session->mutex );
-
-					self->run_flag = self->session->wait_thread_run_flag;
-				 }
+				self->run_flag = self->session->wait_thread_run_flag;
 			}
 			EXCEPT_DEFAULT
 			{
