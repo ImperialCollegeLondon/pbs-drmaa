@@ -437,10 +437,10 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
 
-	if( pbssession->pbs_home == NULL || pbssession->super.wait_thread_started )
-		pbsdrmaa_job_on_missing_standard( self );	
+	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started )
+		fsd_log_debug(("Job on missing but WT is running. Skipping...")); /* TODO: try to provide implementation that uses accounting/server log files */
 	else
-		pbsdrmaa_job_on_missing_standard( self ); /* TODO: try to provide implementation that uses accounting/server log files */
+		pbsdrmaa_job_on_missing_standard( self );	
 }
 
 void
