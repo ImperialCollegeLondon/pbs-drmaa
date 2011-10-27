@@ -319,7 +319,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 									}
 #endif
 							 }
-#ifndef PBS_PBS_PROFESSIONAL
+#ifndef PBS_PROFESSIONAL
 							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job deleted", 11) == 0)
 #else
 							else if (event_type == pbsdrmaa_event_0008 && strncmp(msg, "Job to be deleted", 17) == 0)
@@ -344,6 +344,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								 }
 								else
 								 {
+									fsd_log_info(("WT - Job %s killed after entering running state (%d). Waiting for Completed event...", job->job_id, job->state));
 									goto cleanup; /* job was started, ignore, wait for Exit_status message */
 								 }
 							 }
@@ -406,6 +407,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 							 }
 							else
 							{
+								fsd_log_debug(("Ignoring msg(type=%d) = %s", event_type,  msg));
 								goto cleanup; /* ignore other job events*/
 							}
 					
