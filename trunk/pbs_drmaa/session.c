@@ -119,9 +119,19 @@ pbsdrmaa_session_new( const char *contact )
 
 		self->status_attrl = pbsdrmaa_create_status_attrl();
 
+	 { 	/* ugly. But this is life... ;( */
+		#define MAX_PBS_CONNECT_RETRIES (3)
+		int tries_counter = MAX_PBS_CONNECT_RETRIES;
+	     retry:
 		self->pbs_conn = pbs_connect( self->super.contact );
 		fsd_log_info(( "pbs_connect(%s) =%d", self->super.contact,
 					self->pbs_conn ));
+		if( self->pbs_conn < 0 && tries_counter-- )
+		 {
+			sleep(1);
+			goto retry;
+		 }
+	 }
 		if( self->pbs_conn < 0 )
 			pbsdrmaa_exc_raise_pbs( "pbs_connect" );
 
@@ -138,6 +148,8 @@ pbsdrmaa_session_new( const char *contact )
 			self->super.destroy( &self->super );
 			self = NULL;
 		  }
+
+		fsd_exc_reraise();
 	 }
 	END_TRY
 	return (fsd_drmaa_session_t*)self;
