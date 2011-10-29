@@ -34,16 +34,20 @@ pbsdrmaa_session_new( const char *contact );
 struct pbsdrmaa_session_s {
 	fsd_drmaa_session_t super;
 
-	bool (*do_drm_keeps_completed_jobs)( pbsdrmaa_session_t *self );
+	bool (*
+	do_drm_keeps_completed_jobs)( pbsdrmaa_session_t *self );
 
-	void (*super_destroy)( fsd_drmaa_session_t *self );
+	void (*
+	super_destroy)( fsd_drmaa_session_t *self );
 
-	void (*super_apply_configuration)(fsd_drmaa_session_t *self);
+	void (*
+	super_apply_configuration)(fsd_drmaa_session_t *self);
 
 	/*
 	 * Pointer to standard wait_thread drmaa_utils function
 	 */
-	void* (*super_wait_thread)( fsd_drmaa_session_t *self );
+        void* (*
+        super_wait_thread)( fsd_drmaa_session_t *self );
 
 	/*
 	 * PBS connection (or -1 if not connected).
@@ -67,12 +71,12 @@ struct pbsdrmaa_session_s {
 	struct attrl *status_attrl;
 
 	/*
-	 * Log file initial size - used by wait_thread which reads log files TODO: check if it can be safely moved to log_reader
+	 * Log file initial size - used by wait_thread which reads log files
  	 */
 	off_t log_file_initial_size;
 
 	/*
-	 * Time we checked log file initial size - used by wait_thread which reads log files TODO: check if it can be safely moved to log_reader
+	 * Time we checked log file initial size - used by wait_thread which reads log files
  	 */
 	time_t log_file_initial_time;
 };

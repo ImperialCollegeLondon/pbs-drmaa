@@ -74,40 +74,6 @@ pbsdrmaa_free_attrl( struct attrl *attr )
 	 }
 }
 
-struct attrl *
-pbsdrmaa_add_attr( struct attrl *head, const char *name, const char *value)
-{
-	struct attrl *p = NULL;
-	char *resource = NULL;
-
-	fsd_malloc( p, struct attrl );
-	memset( p, 0, sizeof(struct attrl) );
-
-	resource = strchr( name, '.' );
-
-	if( resource )
-	 {
-		p->name = fsd_strndup( name, resource - name );
-		p->resource = fsd_strdup( resource+1 );
-	 }
-	else
-	 {
-		p->name = fsd_strdup( name );
-	 }
-
-	p->value = fsd_strdup(value);
-	p->op = SET;
-
-	fsd_log_debug(("set attr: %s = %s", name, value));
-
-	if (head)
-		p->next = head;
-	else
-		p->next = NULL;
-
-	return p;
-}
-
 
 void
 pbsdrmaa_exc_raise_pbs( const char *function )
@@ -280,4 +246,86 @@ pbsdrmaa_write_tmpfile( const char *content, size_t len )
 	return name;
 }
 
+ssize_t fsd_getline(char * line,ssize_t size, int fd)
+{
+	char buf;
+	char * ptr = NULL;
+	ssize_t n = 0, rc;
+	ptr = line;
+	for(n = 1; n< size; n++)
+	{		
+		if( (rc = read(fd,&buf,1 )) == 1) {
+			*ptr++ = buf;
+			if(buf == '\n')
+			{
+				break;
+			}
+		}
+		else if (rc == 0) {
+			if (n == 1)
+				return 0;
+			else
+				break;
+		}		
+		else
+			return -1; 
+	}
+
+	return n;
+} 
+
+ssize_t fsd_getline_buffered(char * line,char * buf, ssize_t size, int fd, int * idx, int * end_idx, int * line_idx)
+{
+	int i = -1;
+	int rc = -1;
+
+	memset(line,0,size);
+	
+start:
+	/* idx - start of data to parse (in buffer)
+	   end_idx - end of data read from log (in buffer)
+	   line_idx - place to write data in output line */
+	if(*idx < *end_idx)
+	{
+		/* take line from buffer */
+		for(i = *idx; i<= *end_idx;i++)
+		{		
+			if(buf[i] == '\n')
+			{
+				int tmp = i - *idx;
+				strncpy(line + *line_idx,buf + *idx,tmp);				
+				*idx = i + 1;
+			
+				tmp+= *line_idx;
+				*line_idx = 0;
+				
+				return tmp;
+			}
+		}
+		
+		/* there was no '\n' so next part of log needs to be read. save lines beginning */
+		if(*line_idx + i - *idx > size )
+			fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"Line longer than %d unsupported",size);
+		
+		strncpy(line + *line_idx,buf + *idx,i - *idx);
+		*line_idx += i - *idx;
+		*idx = 0;
+		*end_idx = 0;
+		goto start;
+	}
+	else
+	{		
+		/* read log */
+		if((rc = read(fd,buf,size)) > 0)
+		{		
+			*end_idx = rc - 1;
+			*idx = 0;
+			goto start;
+		}
+		else if (rc == 0) 
+			return 0;
+		else
+			return -1;
+	}
+} 
 

@@ -58,6 +58,9 @@ pbsdrmaa_job_on_missing( fsd_job_t *self );
 void
 pbsdrmaa_job_on_missing_standard( fsd_job_t *self );
 
+void
+pbsdrmaa_job_on_missing_log_based( fsd_job_t *self );
+
 static void
 pbsdrmaa_job_update( fsd_job_t *self, struct batch_status* );
 
@@ -185,7 +188,6 @@ pbsdrmaa_job_update_status( fsd_job_t *self )
 	pbsdrmaa_session_t *session = (pbsdrmaa_session_t*)self->session;
 
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
-	
 	TRY
 	 {
 		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
@@ -200,26 +202,15 @@ retry:
 				 session->pbs_conn, self->job_id, (void*)status ));
 		if( status == NULL )
 		 {
-
 #ifndef PBS_PROFESSIONAL
-			if ( pbs_errno != PBSE_UNKJOBID )
-				fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
-			else
-				fsd_log_debug(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
+			fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
 #else
 #  ifndef PBS_PROFESSIONAL_NO_LOG
-			if ( pbs_errno != PBSE_UNKJOBID )
-				fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
-			else
-				fsd_log_debug(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
+			fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
 #  else
-			if ( pbs_errno != PBSE_UNKJOBID )
-				fsd_log_error(("pbs_statjob error: %d", pbs_errno));
-			else
-				fsd_log_debug(("pbs_statjob error: %d", pbs_errno));
+			fsd_log_error(("pbs_statjob error: %d", pbs_errno));
 #  endif
 #endif
-
 			switch( pbs_errno )
 			 {
 				case PBSE_UNKJOBID:
@@ -232,7 +223,7 @@ retry:
 					session->pbs_conn = pbs_connect( session->super.contact );
 					if( session->pbs_conn < 0 )
 						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-					else
+					else 
 					 {
 						fsd_log_error(("retry:"));
 						goto retry;
@@ -244,20 +235,16 @@ retry:
 					fsd_exc_raise_code( FSD_ERRNO_INTERNAL_ERROR );
 					break;
 			 }
-
 		 }
 
 		conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
-
 
 		if( status != NULL )
 		 {
 			((pbsdrmaa_job_t*)self)->update( self, status );
 		 }
 		else if( self->state < DRMAA_PS_DONE )
-		 {
 			self->on_missing( self );
-		 }
 	 }
 	FINALLY
 	 {
@@ -301,7 +288,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 				pbs_state = i->value[0];				
 				break;
 			case PBSDRMAA_ATTR_EXIT_STATUS:
-				exit_status = fsd_atoi( i->value );
+				exit_status = atoi( i->value );
 				break;
 			case PBSDRMAA_ATTR_RESOURCES_USED:
 				if( !strcmp( i->resource, "cput" ) )
@@ -321,21 +308,12 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 				if (!self->project)
 					self->project = fsd_strdup(i->value);
 				break;
-#ifndef PBS_PROFESSIONAL
 			case PBSDRMAA_ATTR_EXECUTION_HOST:
 				if (!self->execution_hosts) {
 					fsd_log_debug(("execution_hosts = %s", i->value));
 					self->execution_hosts = fsd_strdup(i->value);
 				}
 				break;
-#else
-			case PBSDRMAA_ATTR_EXECUTION_VNODE:
-				if (!self->execution_hosts) {
-					fsd_log_debug(("execution_hosts = %s", i->value));
-					self->execution_hosts = fsd_strdup(i->value);
-				}
-				break;
-#endif
 			case PBSDRMAA_ATTR_START_TIME:
 				{
 				  long unsigned int start_time;
@@ -373,14 +351,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 					self->state = DRMAA_PS_FAILED;
 					self->exit_status = -1;
 				}
-				if (modify_time != 0)
-					self->end_time = modify_time; /* take last modify time as end time */
-				else
-					self->end_time = time(NULL);
-				
-				if (self->start_time == 0)
-					self->start_time = self->end_time;
-
+				self->end_time = modify_time; /* take last modify time as end time */
 				break;
 			case 'E': /* Job is exiting after having run. - MM: ignore exiting state (transient state) - outputs might have not been transfered yet, 
 					MM2: mark job as running if current job status is undetermined - fix "ps after job was ripped" */
@@ -446,10 +417,10 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
 
-	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started )
-		fsd_log_info(("Job on missing but WT is running. Skipping...")); /* TODO: try to provide implementation that uses accounting/server log files */
-	else
+	if( pbssession->pbs_home == NULL || pbssession->super.wait_thread_started )
 		pbsdrmaa_job_on_missing_standard( self );	
+	else
+		pbsdrmaa_job_on_missing_log_based( self );	
 }
 
 void
@@ -468,7 +439,7 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 		case FSD_IGNORE_MISSING_JOBS:         missing_mask = 0x73;  break;
 		case FSD_IGNORE_QUEUED_MISSING_JOBS:  missing_mask = 0x13;  break;
 	}
-	fsd_log_info(( "last job_ps: %s (0x%02x); mask: 0x%02x",
+	fsd_log_debug(( "last job_ps: %s (0x%02x); mask: 0x%02x",
 				drmaa_job_ps_to_str(self->state), self->state, missing_mask ));
 
 	if( self->state < DRMAA_PS_DONE
@@ -502,3 +473,26 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 				drmaa_job_ps_to_str(self->state), self->exit_status ));
 }
 
+void
+pbsdrmaa_job_on_missing_log_based( fsd_job_t *self )
+{
+	fsd_drmaa_session_t *session = self->session;
+	pbsdrmaa_log_reader_t *log_reader = NULL;
+	
+	fsd_log_enter(( "({job_id=%s})", self->job_id ));
+	fsd_log_info(( "Job %s missing from DRM queue", self->job_id ));
+	
+	TRY
+	{	
+		log_reader = pbsdrmaa_log_reader_new( session, self);
+		log_reader->read_log( log_reader ); 
+	}
+	FINALLY
+	{
+		pbsdrmaa_log_reader_destroy( log_reader );
+	}
+	END_TRY
+
+	fsd_log_return(( "; job_ps=%s, exit_status=%d",
+				drmaa_job_ps_to_str(self->state), self->exit_status ));	
+}

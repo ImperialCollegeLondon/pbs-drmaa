@@ -238,7 +238,7 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 			  {
 				char errbuf[256] = "InternalError";
 				(void)strerror_r(errno, errbuf, sizeof(errbuf));
-				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"stat error on file %s: %s", log_path, errbuf);
+				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"stat error: %s",errbuf);
 			  }
 	
 			fsd_log_debug(("Log file %s size %d",log_path,(int) statbuf.st_size));
@@ -519,7 +519,7 @@ pbsdrmaa_session_wait_thread( fsd_drmaa_session_t *self )
 	
 	TRY
 	{	
-		log_reader = pbsdrmaa_log_reader_new( self );
+		log_reader = pbsdrmaa_log_reader_new( self, NULL);
 		log_reader->read_log( log_reader );
 	}
 	FINALLY

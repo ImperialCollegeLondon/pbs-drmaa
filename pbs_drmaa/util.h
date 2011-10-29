@@ -30,9 +30,8 @@ int pbsdrmaa_map_pbs_errno( int _pbs_errno );
 struct attrl;
 
 void pbsdrmaa_free_attrl( struct attrl *list );
-void pbsdrmaa_dump_attrl( const struct attrl *attribute_list, const char *prefix );
-
-struct attrl *pbsdrmaa_add_attr( struct attrl *head, const char *name, const char *value);
+void pbsdrmaa_dump_attrl(
+		const struct attrl *attribute_list, const char *prefix );
 
 /**
  * Writes temporary file.
@@ -43,6 +42,11 @@ struct attrl *pbsdrmaa_add_attr( struct attrl *head, const char *name, const cha
 char *
 pbsdrmaa_write_tmpfile( const char *content, size_t len );
 
+ssize_t
+fsd_getline(char * line,ssize_t size, int fd);
+
+ssize_t 
+fsd_getline_buffered(char * line,char * buf, ssize_t size, int fd, int * idx, int * end_idx, int * line_idx);
 
 #endif /* __PBS_DRMAA__UTIL_H */
 

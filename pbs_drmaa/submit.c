@@ -150,10 +150,25 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 			const char *name = pbs_tmpl->by_code( pbs_tmpl, i )->name;
 			if( name  &&  name[0] != '!' && pbs_tmpl->get_attr( pbs_tmpl, name ) )
 			 {
+				struct attrl *p;
+				const char *resource;
 				const char *value;
-
 				value = pbs_tmpl->get_attr( pbs_tmpl, name );
-				pbs_attr = pbsdrmaa_add_attr( pbs_attr, name, value );
+				fsd_malloc( p, struct attrl );
+				memset( p, 0, sizeof(struct attrl) );
+				p->next = pbs_attr;
+				pbs_attr = p;
+				resource = strchr( name, '.' );
+				if( resource )
+				 {
+					p->name = fsd_strndup( name, resource-name );
+					p->resource = fsd_strdup( resource+1 );
+				 }
+				else
+					p->name = fsd_strdup( name );
+				fsd_log_debug(("set attr: %s = %s", name, value));
+				p->value = fsd_strdup( value );
+				p->op = SET;
 			 }
 		 }
 
@@ -446,39 +461,23 @@ pbsdrmaa_submit_apply_job_environment( pbsdrmaa_submit_t *self )
 {
 	const fsd_template_t *jt = self->job_template;
 	const char *const *env_v;
-	const char *jt_wd;
-	char *wd;
-	char *env_c = NULL;
-	int ii = 0, len = 0;
 
 	env_v = jt->get_v_attr( jt, DRMAA_V_ENV);
-	jt_wd    = jt->get_attr( jt, DRMAA_WD );
-	
-	if (!jt_wd)
-	{
-		wd = fsd_getcwd();
-	}
-	else
-	{
-		wd = fsd_strdup(jt_wd);
-	}
 
 	if (env_v)
 	{
+		char *env_c = NULL;
+		int ii = 0, len = 0;
+
 		ii = 0;
 		while (env_v[ii]) {
 			len += strlen(env_v[ii]) + 1;
 			ii++;
 		}
-	}
-	
-	len+= strlen("PBS_O_WORKDIR=") + strlen(wd);
 
-	fsd_calloc(env_c, len + 1, char);
-	env_c[0] = '\0';
+		fsd_calloc(env_c, len + 1, char);
+		env_c[0] = '\0';
 
-	if (env_v)
-	{
 		ii = 0;
 		while (env_v[ii]) {
 			strcat(env_c, env_v[ii]);
@@ -486,15 +485,12 @@ pbsdrmaa_submit_apply_job_environment( pbsdrmaa_submit_t *self )
 			ii++;
 		}
 
+		env_c[strlen(env_c) -1 ] = '\0'; /*remove the last ',' */
+
+		self->pbs_job_attributes->set_attr(self->pbs_job_attributes, "Variable_List", env_c);
+
+		fsd_free(env_c);
 	}
-	
-	strcat(env_c, "PBS_O_WORKDIR=");
-	strcat(env_c, wd);
-
-	self->pbs_job_attributes->set_attr(self->pbs_job_attributes, "Variable_List", env_c);
-
-	fsd_free(env_c);
-	fsd_free(wd);
 }
 
 
@@ -671,9 +667,6 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 							pbs_attr->set_attr( pbs_attr, "Priority" , arg );
 							break;
 						case 'q' :
-							if (self->destination_queue)
-								fsd_free(self->destination_queue);
-
 							self->destination_queue = fsd_strdup( arg );
 							fsd_log_debug(("self->destination_queue = %s", self->destination_queue));
 							break;
