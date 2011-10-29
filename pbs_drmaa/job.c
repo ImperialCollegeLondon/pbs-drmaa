@@ -202,12 +202,21 @@ retry:
 		 {
 
 #ifndef PBS_PROFESSIONAL
-			fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
+			if ( pbs_errno != PBSE_UNKJOBID )
+				fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
+			else
+				fsd_log_debug(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
 #else
 #  ifndef PBS_PROFESSIONAL_NO_LOG
-			fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
+			if ( pbs_errno != PBSE_UNKJOBID )
+				fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
+			else
+				fsd_log_debug(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
 #  else
-			fsd_log_error(("pbs_statjob error: %d", pbs_errno));
+			if ( pbs_errno != PBSE_UNKJOBID )
+				fsd_log_error(("pbs_statjob error: %d", pbs_errno));
+			else
+				fsd_log_debug(("pbs_statjob error: %d", pbs_errno));
 #  endif
 #endif
 
@@ -438,7 +447,7 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
 
 	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started )
-		fsd_log_debug(("Job on missing but WT is running. Skipping...")); /* TODO: try to provide implementation that uses accounting/server log files */
+		fsd_log_info(("Job on missing but WT is running. Skipping...")); /* TODO: try to provide implementation that uses accounting/server log files */
 	else
 		pbsdrmaa_job_on_missing_standard( self );	
 }
@@ -459,7 +468,7 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 		case FSD_IGNORE_MISSING_JOBS:         missing_mask = 0x73;  break;
 		case FSD_IGNORE_QUEUED_MISSING_JOBS:  missing_mask = 0x13;  break;
 	}
-	fsd_log_debug(( "last job_ps: %s (0x%02x); mask: 0x%02x",
+	fsd_log_info(( "last job_ps: %s (0x%02x); mask: 0x%02x",
 				drmaa_job_ps_to_str(self->state), self->state, missing_mask ));
 
 	if( self->state < DRMAA_PS_DONE
