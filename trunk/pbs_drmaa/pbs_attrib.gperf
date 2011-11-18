@@ -68,6 +68,7 @@ Resource_List.arch, t(PBSDRMAA_ATTR_ARCHITECTURE)
 Resource_List.host, t(PBSDRMAA_ATTR_HOST)
 Resource_List.nodes, t(PBSDRMAA_ATTR_NODES)
 Resource_List.software, t(PBSDRMAA_ATTR_SOFTWARE)
+Resource_List.procs, t(PBSDRMAA_ATTR_PROCS)
 Mail_Points, t(PBSDRMAA_ATTR_MAIL_POINTS)
 Output_Path, t(PBSDRMAA_ATTR_OUTPUT_PATH)
 Priority, t(PBSDRMAA_ATTR_PRIORITY)
@@ -184,6 +185,7 @@ const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
 	{ "Resource_List.host", PBSDRMAA_ATTR_HOST, false },
 	{ "Resource_List.nodes", PBSDRMAA_ATTR_NODES, false },
 	{ "Resource_List.software", PBSDRMAA_ATTR_SOFTWARE, false },
+	{ "Resource_List.procs", PBSDRMAA_ATTR_PROCS, false },
 	{ "Mail_Points", PBSDRMAA_ATTR_MAIL_POINTS, false },
 	{ "Output_Path", PBSDRMAA_ATTR_OUTPUT_PATH, false },
 	{ "Priority", PBSDRMAA_ATTR_PRIORITY, false },
