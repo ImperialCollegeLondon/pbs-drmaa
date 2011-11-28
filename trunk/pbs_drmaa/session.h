@@ -34,8 +34,6 @@ pbsdrmaa_session_new( const char *contact );
 struct pbsdrmaa_session_s {
 	fsd_drmaa_session_t super;
 
-	bool (*do_drm_keeps_completed_jobs)( pbsdrmaa_session_t *self );
-
 	void (*super_destroy)( fsd_drmaa_session_t *self );
 
 	void (*super_apply_configuration)(fsd_drmaa_session_t *self);
@@ -75,6 +73,16 @@ struct pbsdrmaa_session_s {
 	 * Time we checked log file initial size - used by wait_thread which reads log files TODO: check if it can be safely moved to log_reader
  	 */
 	time_t log_file_initial_time;
+
+	/*
+	 * Maximal number of retires in pbs_connect. Default 3
+	 */
+	int max_retries_count;
+
+	/*
+	 * Wait thread sleep time (in seconds). Default 1s.
+	 */
+	int wait_thread_sleep_time;
 };
 
 #endif /* __PBS_DRMAA__SESSION_H */

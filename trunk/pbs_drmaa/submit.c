@@ -144,6 +144,8 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 	 {
 		const fsd_template_t *pbs_tmpl = self->pbs_job_attributes;
 		unsigned i;
+		int tries_left = ((pbsdrmaa_session_t *)self->session)->max_retries_count;
+		int sleep_time = 1;
 
 		for( i = 0;  i < PBSDRMAA_N_PBS_ATTRIBUTES;  i++ )
 		 {
@@ -172,10 +174,14 @@ retry:
 				pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self->session;
 				if (pbsself->pbs_conn >= 0 )
 					pbs_disconnect( pbsself->pbs_conn );
-				sleep(1);
+retry_connect:
+				sleep(sleep_time++);
 				pbsself->pbs_conn = pbs_connect( pbsself->super.contact );
-				if( pbsself->pbs_conn < 0 )
-					pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+				if( pbsself->pbs_conn < 0)
+					if (tries_left--)
+						goto retry_connect;
+					else
+						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
 				else
 					goto retry;
 			 }
@@ -611,7 +617,7 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 
 		TRY
 		  {
-			for (arg = strtok_r(native_spec_copy, " \t", &ctxt); arg; arg = strtok_r(NULL, " \t",&ctxt) ) {
+			for (arg = strtok_r((char *)native_spec_copy, " \t", &ctxt); arg; arg = strtok_r(NULL, " \t",&ctxt) ) {
 				if (!opt)
 				  {
 					if ( (arg[0] != '-') || (strlen(arg) != 2) )
@@ -717,7 +723,7 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 			pbs_attr->set_attr( pbs_attr, "submit_args", native_specification);
 #endif
 			args_list->destroy(args_list);
-			fsd_free(native_spec_copy);
+			fsd_free((char *)native_spec_copy);
 		 }
 		END_TRY
 	}
