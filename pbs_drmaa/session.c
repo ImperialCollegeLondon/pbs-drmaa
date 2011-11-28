@@ -64,9 +64,6 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self );
 static fsd_job_t *
 pbsdrmaa_session_new_job( fsd_drmaa_session_t *self, const char *job_id );
 
-static bool
-pbsdrmaa_session_do_drm_keeps_completed_jobs( pbsdrmaa_session_t *self );
-
 static void
 pbsdrmaa_session_update_all_jobs_status( fsd_drmaa_session_t *self );
 
@@ -114,32 +111,29 @@ pbsdrmaa_session_new( const char *contact )
 		self->super_apply_configuration = self->super.apply_configuration;
 		self->super.apply_configuration = pbsdrmaa_session_apply_configuration;
 
-		self->do_drm_keeps_completed_jobs =
-			pbsdrmaa_session_do_drm_keeps_completed_jobs;
-
 		self->status_attrl = pbsdrmaa_create_status_attrl();
-
-	 { 	/* ugly. But this is life... ;( */
-		#define MAX_PBS_CONNECT_RETRIES (3)
-		int tries_counter = MAX_PBS_CONNECT_RETRIES;
-	     retry:
-		self->pbs_conn = pbs_connect( self->super.contact );
-		fsd_log_info(( "pbs_connect(%s) =%d", self->super.contact,
-					self->pbs_conn ));
-		if( self->pbs_conn < 0 && tries_counter-- )
-		 {
-			sleep(1);
-			goto retry;
-		 }
-	 }
-		if( self->pbs_conn < 0 )
-			pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+		self->max_retries_count = 3;
+		self->wait_thread_sleep_time = 1;
 
 		self->super.load_configuration( &self->super, "pbs_drmaa" );
 
 		self->super.missing_jobs = FSD_IGNORE_MISSING_JOBS;
-		if( self->do_drm_keeps_completed_jobs( self ) )
-			self->super.missing_jobs = FSD_IGNORE_QUEUED_MISSING_JOBS;
+
+		 {
+			int tries_left = self->max_retries_count;
+			int sleep_time = 1;
+retry_connect: /* Life... */
+			self->pbs_conn = pbs_connect( self->super.contact );
+			fsd_log_info(( "pbs_connect(%s) =%d", self->super.contact, self->pbs_conn ));
+			if( self->pbs_conn < 0 && tries_left-- )
+			 {
+				sleep(sleep_time++);
+				goto retry_connect;
+			 }
+
+			if( self->pbs_conn < 0 )
+				pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+		 }
 	 }
 	EXCEPT_DEFAULT
 	 {
@@ -222,8 +216,13 @@ void
 pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 {
 	pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self;
-	fsd_conf_option_t *pbs_home;
+	fsd_conf_option_t *pbs_home = NULL;
+	fsd_conf_option_t *wait_thread_sleep_time = NULL;
+	fsd_conf_option_t *max_retries_count = NULL;
+
 	pbs_home = fsd_conf_dict_get(self->configuration, "pbs_home" );
+	wait_thread_sleep_time = fsd_conf_dict_get(self->configuration, "wait_thread_sleep_time" );
+	max_retries_count = fsd_conf_dict_get(self->configuration, "max_retries_count" );
 
 	if( pbs_home && pbs_home->type == FSD_CONF_STRING )
 	  {
@@ -258,6 +257,18 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 			fsd_free(log_path);
 	  }
 
+	if ( max_retries_count && max_retries_count->type == FSD_CONF_INTEGER)
+	  {
+		pbsself->max_retries_count = max_retries_count->val.integer;
+		fsd_log_info(("Max retries count: %d", pbsself->max_retries_count));
+	  }
+
+	if ( wait_thread_sleep_time && wait_thread_sleep_time->type == FSD_CONF_INTEGER)
+	  {
+		pbsself->wait_thread_sleep_time = wait_thread_sleep_time->val.integer;
+		fsd_log_info(("Wait thread sleep time: %d", pbsself->wait_thread_sleep_time));
+	  }
+
 	pbsself->super_apply_configuration(self); /* call method from the superclass */
 }
 
@@ -270,6 +281,8 @@ pbsdrmaa_session_update_all_jobs_status( fsd_drmaa_session_t *self )
 	pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self;
 	fsd_job_set_t *jobs = self->jobs;
 	struct batch_status *volatile status = NULL;
+	volatile int tries_left = pbsself->max_retries_count;
+	volatile int sleep_time = 1;
 
 	fsd_log_enter((""));
 
@@ -283,18 +296,23 @@ retry:
 #else
 		status = pbs_statjob( pbsself->pbs_conn, NULL, pbsself->status_attrl, NULL );
 #endif
-		fsd_log_info(( "pbs_statjob( fd=%d, job_id=NULL, attribs={...} ) =%p",
-				 pbsself->pbs_conn, (void*)status ));
+		fsd_log_info(( "pbs_statjob( fd=%d, job_id=NULL, attribs={...} ) =%p", pbsself->pbs_conn, (void*)status ));
 		if( status == NULL  &&  pbs_errno != 0 )
 		 {
 			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED)
 			 {
 				if ( pbsself->pbs_conn >= 0)
 					pbs_disconnect( pbsself->pbs_conn );
-				sleep(1);
+retry_connect:
+				sleep(sleep_time++);
 				pbsself->pbs_conn = pbs_connect( pbsself->super.contact );
-				if( pbsself->pbs_conn < 0 )
-					pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+				if( pbsself->pbs_conn < 0)
+				 {
+					if (tries_left--)
+						goto retry_connect;
+					else
+						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+				 }
 				else
 					goto retry;
 			 }
@@ -426,100 +444,6 @@ pbsdrmaa_create_status_attrl(void)
 	pbsdrmaa_dump_attrl( result, NULL );
 #endif
 	return result;
-}
-
-
-bool
-pbsdrmaa_session_do_drm_keeps_completed_jobs( pbsdrmaa_session_t *self )
-{
-
-#ifndef PBS_PROFESSIONAL
-	struct attrl default_queue_query;
-	struct attrl keep_completed_query;
-	struct batch_status *default_queue_result = NULL;
-	struct batch_status *keep_completed_result = NULL;
-	const char *default_queue = NULL;
-	const char *keep_completed = NULL;
-	volatile bool result = false;
-	volatile bool conn_lock = false;
-
-	TRY
-	 {
-		default_queue_query.next = NULL;
-		default_queue_query.name = "default_queue";
-		default_queue_query.resource = NULL;
-		default_queue_query.value = NULL;
-		keep_completed_query.next = NULL;
-		keep_completed_query.name = "keep_completed";
-		keep_completed_query.resource = NULL;
-		keep_completed_query.value = NULL;
-
-		conn_lock = fsd_mutex_lock( &self->super.drm_connection_mutex );
-
-		default_queue_result =
-				pbs_statserver( self->pbs_conn, &default_queue_query, NULL );
-		if( default_queue_result == NULL )
-			pbsdrmaa_exc_raise_pbs( "pbs_statserver" );
-		if( default_queue_result->attribs
-				&&  !strcmp( default_queue_result->attribs->name,
-					"default_queue" ) )
-			default_queue = default_queue_result->attribs->value;
-
-		fsd_log_debug(( "default_queue: %s", default_queue ));
-
-		if( default_queue )
-		 {
-			keep_completed_result = pbs_statque( self->pbs_conn,
-					(char*)default_queue, &keep_completed_query, NULL );
-			if( keep_completed_result == NULL )
-				pbsdrmaa_exc_raise_pbs( "pbs_statque" );
-			if( keep_completed_result->attribs
-					&&  !strcmp( keep_completed_result->attribs->name,
-						"keep_completed" ) )
-				keep_completed = keep_completed_result->attribs->value;
-		 }
-
-		fsd_log_debug(( "keep_completed: %s", keep_completed ));
-	 }
-	EXCEPT_DEFAULT
-	 {
-		const fsd_exc_t *e = fsd_exc_get();
-		fsd_log_warning(( "PBS server seems not to keep completed jobs\n"
-				"detail: %s", e->message(e) ));
-		result = false;
-	 }
-	ELSE
-	 {
-		result = false;
-		if( default_queue == NULL )
-			fsd_log_warning(( "no default queue set on PBS server" ));
-		else if( keep_completed == NULL && self->pbs_home == NULL )
-			fsd_log_warning(( "Torque server is not configured to keep completed jobs\n"
-						"in Torque: set keep_completed parameter of default queue\n"
-						"  $ qmgr -c 'set queue batch keep_completed = 60'\n"
-						" or configure DRMAA to utilize log files"
-						));
-		else
-			result = true;
-	 }
-	FINALLY
-	 {
-		if( default_queue_result )
-			pbs_statfree( default_queue_result );
-		if( keep_completed_result )
-			pbs_statfree( keep_completed_result );
-		if( conn_lock )
-			conn_lock = fsd_mutex_unlock( &self->super.drm_connection_mutex );
-
-	 }
-	END_TRY
-
-	return result;
-#endif
-	fsd_log_warning(( "PBS Professional does not keep information about the completed jobs\n"
-				" You must configure DRMAA to utilize log files in order to always get valid job exit status"
-				));
-	return false;
 }
 
 void *

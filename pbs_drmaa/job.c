@@ -89,13 +89,13 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 
 	TRY
 	 {
-		int try_count;
-		const int max_tries = 3;
+		int tries_left = session->max_retries_count;
+		int sleep_time = 1;
 
 		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
 
 		/*TODO reconnect */
-		for( try_count=0;  try_count < max_tries;  try_count++ )
+		while ( true )
 		 {
 			switch( action )
 			 {
@@ -150,21 +150,38 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 					break;
 			 }
 
-			if( rc == PBSE_NONE )
+retry_connect:
+			if ( rc == PBSE_NONE )
 				break;
-			else if( rc == PBSE_INTERNAL )
+			else if (( rc == PBSE_INTERNAL || rc == PBSE_PROTOCOL || rc == PBSE_EXPIRED) && (tries_left--))
 			 {
-				/*
-				 * In PBS Pro pbs_sigjob raises internal server error (PBSE_INTERNAL)
-				 * when job just changed its state to running.
-				 */
-				fsd_log_debug(( "repeating request (%d of %d)",
-							try_count+2, max_tries ));
-				sleep( 1 );
+				if (rc == PBSE_PROTOCOL || rc == PBSE_EXPIRED)
+				 {
+					if ( session->pbs_conn >= 0)
+						pbs_disconnect( session->pbs_conn );
+
+					sleep( sleep_time++ );
+
+					session->pbs_conn = pbs_connect( session->super.contact );
+
+					if (session->pbs_conn < 0)
+						goto retry_connect;
+
+					fsd_log_info(( "pbs_connect(%s) =%d", session->super.contact, session->pbs_conn ));
+				 }
+				else /* PBSE_INTERNAL */
+				 {
+					/*
+					 * In PBS Pro pbs_sigjob raises internal server error (PBSE_INTERNAL)
+					 * when job just changed its state to running.
+					 */
+					sleep( sleep_time++ );
+				 }
+				fsd_log_debug(( "repeating request (%d of %d)", tries_left, session->max_retries_count));
 			 }
 			else
 				pbsdrmaa_exc_raise_pbs( apicall );
-		 } /* end for */
+		 } /* end while */
 	 }
 	FINALLY
 	 {
@@ -183,6 +200,8 @@ pbsdrmaa_job_update_status( fsd_job_t *self )
 	volatile bool conn_lock = false;
 	struct batch_status *volatile status = NULL;
 	pbsdrmaa_session_t *session = (pbsdrmaa_session_t*)self->session;
+	int tries_left = session->max_retries_count;
+	int sleep_time = 1;
 
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
 	
@@ -228,13 +247,18 @@ retry:
 				case PBSE_EXPIRED:
 					if ( session->pbs_conn >= 0 )
 						pbs_disconnect( session->pbs_conn );
-					sleep(1);
+retry_connect:
+					sleep(sleep_time++);
 					session->pbs_conn = pbs_connect( session->super.contact );
 					if( session->pbs_conn < 0 )
-						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+					 {
+						if (tries_left--)
+							goto retry_connect;
+						else
+							pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+					 }
 					else
 					 {
-						fsd_log_error(("retry:"));
 						goto retry;
 					 }
 				default:
