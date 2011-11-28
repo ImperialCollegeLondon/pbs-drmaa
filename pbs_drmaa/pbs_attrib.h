@@ -52,6 +52,7 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_SOFTWARE               "Resource_List.software"
 #define PBSDRMAA_PROCS                  "Resource_List.procs"
 #define PBSDRMAA_NCPUS                  "Resource_List.ncpus"
+#define PBSDRMAA_SOFTWARE               "Resource_List.software"
 #define PBSDRMAA_MAIL_POINTS            "Mail_Points"
 #define PBSDRMAA_OUTPUT_PATH            "Output_Path"
 #define PBSDRMAA_PRIORITY               "Priority"
