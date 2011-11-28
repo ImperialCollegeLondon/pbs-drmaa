@@ -1,4 +1,6 @@
 configure
+.project
+.cproject
 Makefile.in
 config.log
 scripts
@@ -15,8 +17,7 @@ aclocal.m4
 .deps
 pbs_attrib.c
 del_all_jobs
-pbs_drmaa-1.0.2.tar.gz
-pbs_drmaa-1.0.3.tar.gz
+pbs_drmaa-1.0.11.tar.gz
 pbs_drmaa
 .svnignore
 configure.ac
@@ -32,3 +33,5 @@ readme.toc
 readme.out
 readme.aux
 readme.log
+drmaa-run
+hpc-bash
