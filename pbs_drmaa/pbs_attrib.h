@@ -52,7 +52,6 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_SOFTWARE               "Resource_List.software"
 #define PBSDRMAA_PROCS                  "Resource_List.procs"
 #define PBSDRMAA_NCPUS                  "Resource_List.ncpus"
-#define PBSDRMAA_SOFTWARE               "Resource_List.software"
 #define PBSDRMAA_MAIL_POINTS            "Mail_Points"
 #define PBSDRMAA_OUTPUT_PATH            "Output_Path"
 #define PBSDRMAA_PRIORITY               "Priority"
@@ -84,7 +83,8 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_EXTENSION              "extension"
 #define PBSDRMAA_SUBMIT_ARGS            "submit_args"
 #define PBSDRMAA_MTIME                  "mtime"
-
+#define PBSDRMAA_NODE_PROPERTIES        "pbsdrmaa.node_properties"
+#define PBSDRMAA_CUSTOM_RESOURCES       "pbsdrmaa.custom_resources"
 
 typedef enum {
 	PBSDRMAA_ATTR_EXECUTION_TIME,
@@ -141,6 +141,8 @@ typedef enum {
 	PBSDRMAA_ATTR_EXTENSION,
 	PBSDRMAA_ATTR_SUBMIT_ARGS,
 	PBSDRMAA_ATTR_MTIME,
+	PBSDRMAA_ATTR_NODE_PROPERTIES,
+	PBSDRMAA_ATTR_CUSTOM_RESOURCES,
 
 	PBSDRMAA_N_PBS_ATTRIBUTES
 } pbs_attribute_t;

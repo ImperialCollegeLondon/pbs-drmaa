@@ -48,19 +48,13 @@ static char rcsid[]
 	= "$Id$";
 #endif
 
-static void
-pbsdrmaa_submit_destroy( pbsdrmaa_submit_t *self );
+static void pbsdrmaa_submit_destroy( pbsdrmaa_submit_t *self );
 
-static char *
-pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self );
+static char *pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self );
 
-static void
-pbsdrmaa_submit_eval( pbsdrmaa_submit_t *self );
+static void pbsdrmaa_submit_eval( pbsdrmaa_submit_t *self );
 
-
-static void
-pbsdrmaa_submit_set( pbsdrmaa_submit_t *self, const char *pbs_attr,
-		char *value, unsigned placeholders );
+static void pbsdrmaa_submit_set( pbsdrmaa_submit_t *self, const char *pbs_attr, char *value, unsigned placeholders );
 
 static void pbsdrmaa_submit_apply_defaults( pbsdrmaa_submit_t *self );
 static void pbsdrmaa_submit_apply_job_script( pbsdrmaa_submit_t *self );
@@ -100,8 +94,7 @@ pbsdrmaa_submit_new( fsd_drmaa_session_t *session,
 		self->apply_job_resources = pbsdrmaa_submit_apply_job_resources;
 		self->apply_job_environment = pbsdrmaa_submit_apply_job_environment;
 		self->apply_email_notification = pbsdrmaa_submit_apply_email_notification;
-		self->apply_native_specification =
-			pbsdrmaa_submit_apply_native_specification;
+		self->apply_native_specification = pbsdrmaa_submit_apply_native_specification;
 
 		self->pbs_job_attributes = pbsdrmaa_pbs_template_new();
 		self->expand_ph = fsd_expand_drmaa_ph_new( NULL, NULL,
@@ -142,19 +135,66 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 	char *volatile job_id = NULL;
 	TRY
 	 {
-		const fsd_template_t *pbs_tmpl = self->pbs_job_attributes;
-		unsigned i;
+		fsd_template_t *pbs_tmpl = self->pbs_job_attributes;
+		int i;
 		int tries_left = ((pbsdrmaa_session_t *)self->session)->max_retries_count;
 		int sleep_time = 1;
 
-		for( i = 0;  i < PBSDRMAA_N_PBS_ATTRIBUTES;  i++ )
+		for( i = PBSDRMAA_N_PBS_ATTRIBUTES - 1; i >= 0; i-- ) /* down loop -> start with custom resources */
 		 {
 			const char *name = pbs_tmpl->by_code( pbs_tmpl, i )->name;
-			if( name  &&  name[0] != '!' && pbs_tmpl->get_attr( pbs_tmpl, name ) )
-			 {
-				const char *value;
+			const char *value = pbs_tmpl->get_attr( pbs_tmpl, name );
 
-				value = pbs_tmpl->get_attr( pbs_tmpl, name );
+			if (!value)
+				continue;
+
+			if ( i == PBSDRMAA_ATTR_CUSTOM_RESOURCES)
+			 {
+				char *value_copy = fsd_strdup(value);
+				char *tok_comma_ctx = NULL;
+				char *res_token = NULL;
+				/* matlab:2,simulink:1 */
+
+				for (res_token = strtok_r(value_copy, ",", &tok_comma_ctx); res_token; res_token = strtok_r(NULL, ",", &tok_comma_ctx))
+				 {
+					char *value_p = strstr(res_token, ":");
+
+					if (value_p)
+					 {
+						char *name_p = NULL;
+						*value_p = '\0';
+						value_p++;
+						name_p = fsd_asprintf("Resource_List.%s",res_token);
+						pbs_attr = pbsdrmaa_add_attr( pbs_attr, name_p, value_p );
+						fsd_free(name_p);
+					 }
+					else
+					 {
+						fsd_exc_raise_code( FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE );
+					 }
+				 }
+
+				fsd_free(value_copy);
+			 }
+			else if (i == PBSDRMAA_ATTR_NODE_PROPERTIES)
+			 {
+				const char *nodes_value = pbs_tmpl->get_attr( pbs_tmpl, PBSDRMAA_NODES );
+				char *final_value = NULL;
+
+				if (!nodes_value)
+				 {
+					final_value = fsd_asprintf("%s:%s",nodes_value, value);
+				 }
+				else
+				 {
+					final_value = fsd_asprintf("1:%s", value);
+				 }
+
+				pbs_tmpl->set_attr( pbs_tmpl, PBSDRMAA_NODES, final_value);
+				fsd_free(final_value);
+			 }
+			else
+			 {
 				pbs_attr = pbsdrmaa_add_attr( pbs_attr, name, value );
 			 }
 		 }
@@ -447,6 +487,8 @@ pbsdrmaa_submit_apply_job_resources( pbsdrmaa_submit_t *self )
 		pbs_attr->set_attr( pbs_attr, "Resource_List.walltime", walltime_limit );
 }
 
+
+
 void
 pbsdrmaa_submit_apply_job_environment( pbsdrmaa_submit_t *self )
 {
@@ -470,13 +512,14 @@ pbsdrmaa_submit_apply_job_environment( pbsdrmaa_submit_t *self )
 	}
 
 	if (env_v)
-	{
+	 {
 		ii = 0;
-		while (env_v[ii]) {
+		while (env_v[ii])
+		 {
 			len += strlen(env_v[ii]) + 1;
 			ii++;
-		}
-	}
+		 }
+	 }
 	
 	len+= strlen("PBS_O_WORKDIR=") + strlen(wd);
 
@@ -530,7 +573,26 @@ pbsdrmaa_submit_apply_job_category( pbsdrmaa_submit_t *self )
 		self->apply_native_specification( self, category_spec );
 }
 
-static void parse_resources(fsd_template_t *pbs_attr,const char *resources)
+static const char *get_job_env(pbsdrmaa_submit_t *self, const char *env_name)
+{
+	const fsd_template_t *jt = self->job_template;
+	const char *const *env_v = jt->get_v_attr( jt, DRMAA_V_ENV);
+	int ii = 0;
+
+	while (env_v[ii])
+	 {
+		char *eq_p = strstr(env_v[ii], "=");
+
+		if ((eq_p) && (strncmp(env_v[ii], env_name, eq_p - env_v[ii]) == 0))
+				return ++eq_p;
+
+		ii++;
+	 }
+
+	return NULL;
+}
+
+static void parse_resources(pbsdrmaa_submit_t *self, fsd_template_t *pbs_attr,const char *resources)
 {
 	char * volatile name = NULL;
 	char *arg = NULL;
@@ -549,7 +611,10 @@ static void parse_resources(fsd_template_t *pbs_attr,const char *resources)
 				*psep = '\0';
 				name = fsd_asprintf("Resource_List.%s", arg);
 				value = ++psep;
-				pbs_attr->set_attr( pbs_attr, name , value );
+				if (value[0] == '$' && get_job_env(self, value + 1))
+					pbs_attr->set_attr( pbs_attr, name , get_job_env(self, value + 1) ); /*get value from job env variable */
+				else
+					pbs_attr->set_attr( pbs_attr, name , value );
 				fsd_free(name);
 				name = NULL;
 			}
@@ -599,7 +664,7 @@ void
 pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 		const char *native_specification )
 {
-        fsd_log_enter(( "({native_specification=%s})", native_specification ));
+	fsd_log_enter(( "({native_specification=%s})", native_specification ));
 
 	if( native_specification == NULL )
 		native_specification = self->job_template->get_attr(
@@ -699,7 +764,7 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 							pbs_attr->set_attr( pbs_attr, "Mail_Users" , arg );
 							break;
 						case 'l' :
-							parse_resources(pbs_attr, arg);
+							parse_resources( self, pbs_attr, arg);
 							break;							
 						default :
 							
