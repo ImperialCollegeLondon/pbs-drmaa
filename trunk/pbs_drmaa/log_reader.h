@@ -44,6 +44,11 @@ struct pbsdrmaa_log_reader_s {
 	
 	void (*select_file) ( pbsdrmaa_log_reader_t * self );
 	
+	void (*close) ( pbsdrmaa_log_reader_t * self );
+
+	void (*reopen) ( pbsdrmaa_log_reader_t * self );
+
+
 	/* determines if function should run */
 	bool run_flag;
 	
@@ -58,6 +63,10 @@ struct pbsdrmaa_log_reader_s {
 	
 	/* for wait_thread - log file first open */
 	bool volatile first_open;	
+
+	char *volatile log_path;
+
+	off_t volatile current_offset;
 };
 
 #endif /* __PBS_DRMAA__LOG_READER_H */

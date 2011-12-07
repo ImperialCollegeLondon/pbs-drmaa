@@ -71,9 +71,11 @@ enum pbsdrmaa_event_type
 
 static void pbsdrmaa_read_log();
 
-static void pbsdrmaa_select_file_wait_thread( pbsdrmaa_log_reader_t * self);
+static void pbsdrmaa_select_file( pbsdrmaa_log_reader_t * self);
 
-char *pbsdrmaa_read_line_wait_thread( pbsdrmaa_log_reader_t * self);
+static void pbsdrmaa_close_log( pbsdrmaa_log_reader_t * self);
+
+static void pbsdrmaa_reopen_log( pbsdrmaa_log_reader_t * self);
 
 static time_t pbsdrmaa_parse_log_timestamp(const char *timestamp, char *unixtime_str, size_t size);
 
@@ -140,13 +142,17 @@ pbsdrmaa_log_reader_new( fsd_drmaa_session_t *session )
 		
 		self->session = session;
 
-		self->select_file = pbsdrmaa_select_file_wait_thread;
+		self->select_file = pbsdrmaa_select_file;
 		self->read_log = pbsdrmaa_read_log;	
+		self->close = pbsdrmaa_close_log;
+		self->reopen = pbsdrmaa_reopen_log;
 		
 		self->run_flag = true;
 		self->fhandle = NULL;
 		self->date_changed = true;
 		self->first_open = true;
+		self->log_path = NULL;
+		self->current_offset = 0;
 		
 	}
 	EXCEPT_DEFAULT
@@ -457,7 +463,13 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 
 				fsd_mutex_unlock( &self->session->mutex );
 
+				/* close */
+				self->close(self);
+
 				sleep(((pbsdrmaa_session_t *)self->session)->wait_thread_sleep_time);
+
+				/* and reopen log file */
+				self->reopen(self);
 
 				fsd_mutex_lock( &self->session->mutex );
 
@@ -489,13 +501,12 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 }
 
 void
-pbsdrmaa_select_file_wait_thread ( pbsdrmaa_log_reader_t * self )
+pbsdrmaa_select_file( pbsdrmaa_log_reader_t * self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*) self->session;
 	
 	if (self->date_changed)
 	 {
-		char * log_path = NULL;
 		int num_tries = 0;
 		struct tm tm; 
 		
@@ -510,17 +521,20 @@ pbsdrmaa_select_file_wait_thread ( pbsdrmaa_log_reader_t * self )
 				
 		#define DRMAA_WAIT_THREAD_MAX_TRIES (12)
 		/* generate new date, close file and open new */
-		log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d", pbssession->pbs_home, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+		if (self->log_path)
+			fsd_free(self->log_path);
+
+		self->log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d", pbssession->pbs_home, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 
 		if(self->fhandle)
 			fclose(self->fhandle);
 
-		fsd_log_info(("Opening log file: %s",log_path));
+		fsd_log_info(("Opening log file: %s",self->log_path));
 				
 	retry:
-		if ((self->fhandle = fopen(log_path,"r")) == NULL && (num_tries > DRMAA_WAIT_THREAD_MAX_TRIES || self->first_open))
+		if ((self->fhandle = fopen(self->log_path,"r")) == NULL && (num_tries > DRMAA_WAIT_THREAD_MAX_TRIES || self->first_open))
 		 {
-			fsd_log_error(("Can't open log file. Verify pbs_home. Running standard wait_thread."));
+			fsd_log_error(("Can't open log file: %s. Verify pbs_home. Running standard wait_thread.", self->log_path));
 			fsd_log_error(("Remember that without keep_completed set the standard wait_thread won't provide information about job exit status"));
 			/*pbssession->super.enable_wait_thread = false;*/ /* run not wait_thread */
 			pbssession->wait_thread_log = false;
@@ -529,13 +543,11 @@ pbsdrmaa_select_file_wait_thread ( pbsdrmaa_log_reader_t * self )
 		 }
 		else if ( self->fhandle == NULL )
 		 { /* Torque seems not to create a new file immediately after the old one is closed */
-			fsd_log_warning(("Can't open log file: %s. Retries count: %d", log_path, num_tries));
+			fsd_log_warning(("Can't open log file: %s. Retries count: %d", self->log_path, num_tries));
 			num_tries++;
 			sleep(2 * num_tries);
 			goto retry;
 		 }
-
-		fsd_free(log_path);
 
 		fsd_log_debug(("Log file opened"));
 
@@ -652,4 +664,28 @@ pbsdrmaa_get_exec_host_from_accountig(pbsdrmaa_log_reader_t * log_reader, const 
 		return exec_host;
 }
 
+void
+pbsdrmaa_close_log( pbsdrmaa_log_reader_t * self )
+{
+
+	self->current_offset = ftello(self->fhandle);
+
+	fclose(self->fhandle);
+
+	self->fhandle = NULL;
+}
+
+void
+pbsdrmaa_reopen_log( pbsdrmaa_log_reader_t * self )
+{
+	if ((self->fhandle = fopen(self->log_path,"r")) == NULL)
+	 {
+		fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"Failed to reopen log file");
+	 }
+
+	if(fseek(self->fhandle, self->current_offset, SEEK_SET) == (off_t) -1)
+	 {
+		fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"fseek error");
+	 }
+}
 

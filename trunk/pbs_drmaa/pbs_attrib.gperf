@@ -67,7 +67,6 @@ Resource_List.walltime, t(PBSDRMAA_ATTR_WALLTIME_LIMIT)
 Resource_List.arch, t(PBSDRMAA_ATTR_ARCHITECTURE)
 Resource_List.host, t(PBSDRMAA_ATTR_HOST)
 Resource_List.nodes, t(PBSDRMAA_ATTR_NODES)
-Resource_List.software, t(PBSDRMAA_ATTR_SOFTWARE)
 Resource_List.procs, t(PBSDRMAA_ATTR_PROCS)
 Resource_List.ncpus, t(PBSDRMAA_ATTR_NCPUS)
 Resource_List.software, t(PBSDRMAA_ATTR_SOFTWARE)
@@ -102,12 +101,8 @@ start_time, t(PBSDRMAA_ATTR_START_TIME)
 x, t(PBSDRMAA_ATTR_EXTENSION)
 submit_args, t(PBSDRMAA_ATTR_SUBMIT_ARGS)
 mtime, t(PBSDRMAA_ATTR_MTIME)
-# reservation attributes:
-# reserve_start,       t(PBSDRMAA_ATTR_RESERVATION_START)
-# reserve_end,         t(PBSDRMAA_ATTR_RESERVATION_END)
-# reserve_duration,    t(PBSDRMAA_ATTR_RESERVATION_DURATION)
-# reserve_state,       t(PBSDRMAA_ATTR_RESERVATION_STATE)
-# reserve_substate,    t(PBSDRMAA_ATTR_RESERVATION_SUBSTATE)
+pbsdrmaa.node_properties, t(PBSDRMAA_ATTR_NODE_PROPERTIES)
+pbsdrmaa.custom_resources, t(PBSDRMAA_ATTR_CUSTOM_RESOURCES)
 %%
 #undef t
 
@@ -186,7 +181,6 @@ const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
 	{ "Resource_List.arch", PBSDRMAA_ATTR_ARCHITECTURE, false },
 	{ "Resource_List.host", PBSDRMAA_ATTR_HOST, false },
 	{ "Resource_List.nodes", PBSDRMAA_ATTR_NODES, false },
-	{ "Resource_List.software", PBSDRMAA_ATTR_SOFTWARE, false },
 	{ "Resource_List.procs", PBSDRMAA_ATTR_PROCS, false },
 	{ "Resource_List.ncpus", PBSDRMAA_ATTR_NCPUS, false },
 	{ "Resource_List.software", PBSDRMAA_ATTR_SOFTWARE, false },
@@ -220,6 +214,9 @@ const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
 	{ "x", PBSDRMAA_ATTR_EXTENSION, false },
 	{ "submit_args", PBSDRMAA_ATTR_SUBMIT_ARGS, false },
 	{ "mtime", PBSDRMAA_ATTR_MTIME, false },
+	{ "pbsdrmaa.node_properties", PBSDRMAA_ATTR_NODE_PROPERTIES, false },
+	{ "pbsdrmaa.custom_resources", PBSDRMAA_ATTR_CUSTOM_RESOURCES, false },
+	
 };
 
 /* vim: set ft=c: */
