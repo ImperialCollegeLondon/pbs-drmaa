@@ -181,7 +181,7 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 				const char *nodes_value = pbs_tmpl->get_attr( pbs_tmpl, PBSDRMAA_NODES );
 				char *final_value = NULL;
 
-				if (!nodes_value)
+				if (nodes_value)
 				 {
 					final_value = fsd_asprintf("%s:%s",nodes_value, value);
 				 }
