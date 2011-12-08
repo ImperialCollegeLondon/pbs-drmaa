@@ -101,8 +101,8 @@ start_time, t(PBSDRMAA_ATTR_START_TIME)
 x, t(PBSDRMAA_ATTR_EXTENSION)
 submit_args, t(PBSDRMAA_ATTR_SUBMIT_ARGS)
 mtime, t(PBSDRMAA_ATTR_MTIME)
-pbsdrmaa.node_properties, t(PBSDRMAA_ATTR_NODE_PROPERTIES)
-pbsdrmaa.custom_resources, t(PBSDRMAA_ATTR_CUSTOM_RESOURCES)
+Resource_List.node_properties, t(PBSDRMAA_ATTR_NODE_PROPERTIES)
+Resource_List.custom_resources, t(PBSDRMAA_ATTR_CUSTOM_RESOURCES)
 %%
 #undef t
 
@@ -214,8 +214,8 @@ const fsd_attribute_t pbsdrmaa_pbs_attributes[ PBSDRMAA_N_PBS_ATTRIBUTES ] = {
 	{ "x", PBSDRMAA_ATTR_EXTENSION, false },
 	{ "submit_args", PBSDRMAA_ATTR_SUBMIT_ARGS, false },
 	{ "mtime", PBSDRMAA_ATTR_MTIME, false },
-	{ "pbsdrmaa.node_properties", PBSDRMAA_ATTR_NODE_PROPERTIES, false },
-	{ "pbsdrmaa.custom_resources", PBSDRMAA_ATTR_CUSTOM_RESOURCES, false },
+	{ "Resource_List.node_properties", PBSDRMAA_ATTR_NODE_PROPERTIES, false }, /* DRMAA extenstions */
+	{ "Resource_List.custom_resources", PBSDRMAA_ATTR_CUSTOM_RESOURCES, false },
 	
 };
 

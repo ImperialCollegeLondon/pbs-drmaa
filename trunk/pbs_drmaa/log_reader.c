@@ -669,6 +669,8 @@ pbsdrmaa_close_log( pbsdrmaa_log_reader_t * self )
 {
 
 	self->current_offset = ftello(self->fhandle);
+	
+	fsd_log_debug(("Closing log  file (offset=%d)", self->current_offset));  
 
 	fclose(self->fhandle);
 
@@ -678,6 +680,8 @@ pbsdrmaa_close_log( pbsdrmaa_log_reader_t * self )
 void
 pbsdrmaa_reopen_log( pbsdrmaa_log_reader_t * self )
 {
+	fsd_log_debug(("Reopening log file: %s (offset=%d)", self->log_path, self->current_offset));  
+
 	if ((self->fhandle = fopen(self->log_path,"r")) == NULL)
 	 {
 		fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"Failed to reopen log file");

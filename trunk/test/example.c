@@ -37,10 +37,10 @@
 #include <errno.h>
 
 #define SEND_MAIL     0
-#define WITH_BULK     0
+#define WITH_BULK     1
 #define EXPORT_ENVS   0
 #define DEBUG         1
-#define N_JOBS        1
+#define N_JOBS        8
 
 #define ERR_LEN      DRMAA_ERROR_STRING_BUFFER
 #define JOB_ID_LEN   256
@@ -106,9 +106,9 @@ test_1(void)
 		int j;
 		printf( "constructing %d\n", i );
 		sprintf( arg, "%d", i );
-		sprintf( job_path, "./test_job" );
+		sprintf( job_path, "/bin/sleep" );
 		argv[0] = job_path;
-		argv[1] = arg;
+		argv[1] = "5";
 		argv[2] = NULL;
 		for( j = 0;  j < 3;  j++ )
 			fds[j] = fds_t[j];
@@ -126,7 +126,7 @@ test_1(void)
 		if( rc )  drmaa_error("drmaa_set_attribute(\"drmaa_set_attribute\")");
 #endif
 	 }
-
+#if ! WITH_BULK
 	for( i = 0;  i < N_JOBS;  i++ )
 	 {
 		char job_id[ DRMAA_JOBNAME_BUFFER ];
@@ -144,14 +144,14 @@ test_1(void)
 		printf( "stat=%d\n", stat );
 	 }
 
-#if WITH_BULK
+#else
 	 {
-		char *argv[] = { "./job", "bulk", "$drmaa_incr_ph$", NULL };
+		char *argv[] = { "/bin/sleep", "5", "$drmaa_incr_ph$", NULL };
 		char *fds[]  = { "b.$drmaa_incr_ph$.stdin", "b.$drmaa_incr_ph$.stdout",
 			"b.$drmaa_incr_ph$.stderr" };
-		bulk_job = construct_job( argv, fds, WD );
+		bulk_job = construct_job( argv, fds, "." );
 	 }
-	rc = drmaa_run_bulk_jobs( &bulk_job_ids, bulk_job, 1, N_JOBS, 1, err_msg, ERR_LEN );
+	rc = drmaa_run_bulk_jobs( &bulk_job_ids, bulk_job, 1, N_JOBS, 2, err_msg, ERR_LEN );
 	if( rc )  drmaa_error("drmaa_run_bulk_jobs");
 
 	if( bulk_job_ids != NULL )
@@ -196,13 +196,7 @@ construct_job( char *argv[], char *fds[3], const char *cwd )
 	};
 #endif
 	const char *scalar_attrs[] = {
-		DRMAA_WD            , NULL,
 		DRMAA_REMOTE_COMMAND, NULL,
-		DRMAA_JOB_NAME      , NULL,
-		DRMAA_INPUT_PATH    , NULL,
-		DRMAA_OUTPUT_PATH   , NULL,
-		DRMAA_ERROR_PATH    , NULL,
-                DRMAA_NATIVE_SPECIFICATION, "-l host=eeyore,nodes=1 -W x=FLAGS:ADVRES:usecase.0",
 		NULL                , NULL
 	};
 #if EXPORT_ENVS
@@ -221,12 +215,7 @@ construct_job( char *argv[], char *fds[3], const char *cwd )
 	const char *const *i;
 	int rc;
 
-	scalar_attrs[ 1] = cwd;
-	scalar_attrs[ 3] = argv[0];
-	scalar_attrs[ 5] = "jobname";
-	scalar_attrs[ 7] = fds[0];
-	scalar_attrs[ 9] = fds[1];
-	scalar_attrs[11] = fds[2];
+	scalar_attrs[ 1] = "/bin/sleep";
 
 	printf( "allocaing template\n" );
 	rc = drmaa_allocate_job_template( &job, err_msg, ERR_LEN );
