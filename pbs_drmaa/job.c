@@ -247,15 +247,19 @@ retry:
 				case PBSE_EXPIRED:
 					if ( session->pbs_conn >= 0 )
 						pbs_disconnect( session->pbs_conn );
+					fsd_log_info(("Protocol error. Reconnecting..."));
 retry_connect:
 					sleep(sleep_time++);
 					session->pbs_conn = pbs_connect( session->super.contact );
 					if( session->pbs_conn < 0 )
 					 {
-						if (tries_left--)
+						if (tries_left--) {
+							fsd_log_info(("%d tries left. Retrying...", tries_left));
 							goto retry_connect;
-						else
+						} else {
+							fsd_log_error(("No more tries left... Throwing exception"));
 							pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+						}
 					 }
 					else
 					 {
