@@ -83,6 +83,11 @@ struct pbsdrmaa_session_s {
 	 * Wait thread sleep time (in seconds). Default 1s.
 	 */
 	int wait_thread_sleep_time;
+
+	/*
+	 * The prefix of the directory where the job exit status information is stored (default: %HOME/.pbs-drmaa/
+	 */
+	char *job_exit_status_file_prefix;
 };
 
 #endif /* __PBS_DRMAA__SESSION_H */
