@@ -134,6 +134,8 @@ retry_connect: /* Life... */
 			if( self->pbs_conn < 0 )
 				pbsdrmaa_exc_raise_pbs( "pbs_connect" );
 		 }
+
+		 self->job_exit_status_file_prefix = NULL;
 	 }
 	EXCEPT_DEFAULT
 	 {
@@ -158,6 +160,8 @@ pbsdrmaa_session_destroy( fsd_drmaa_session_t *self )
 	if( pbsself->pbs_conn >= 0 )
 		pbs_disconnect( pbsself->pbs_conn );
 	fsd_free( pbsself->status_attrl );
+	fsd_free( pbsself->job_exit_status_file_prefix );
+
 	pbsself->super_destroy( self );	
 }
 
@@ -219,10 +223,12 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 	fsd_conf_option_t *pbs_home = NULL;
 	fsd_conf_option_t *wait_thread_sleep_time = NULL;
 	fsd_conf_option_t *max_retries_count = NULL;
+	fsd_conf_option_t *user_state_dir = NULL;
 
 	pbs_home = fsd_conf_dict_get(self->configuration, "pbs_home" );
 	wait_thread_sleep_time = fsd_conf_dict_get(self->configuration, "wait_thread_sleep_time" );
 	max_retries_count = fsd_conf_dict_get(self->configuration, "max_retries_count" );
+	user_state_dir = fsd_conf_dict_get(self->configuration, "user_state_dir" );
 
 	if( pbs_home && pbs_home->type == FSD_CONF_STRING )
 	  {
@@ -268,6 +274,32 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 		pbsself->wait_thread_sleep_time = wait_thread_sleep_time->val.integer;
 		fsd_log_info(("Wait thread sleep time: %d", pbsself->wait_thread_sleep_time));
 	  }
+
+	if( user_state_dir && user_state_dir->type == FSD_CONF_STRING )
+	  {
+		struct passwd *pw = NULL;
+		uid_t uid;
+
+		uid = geteuid();
+		pw = getpwuid(uid); /* drmaa_init is always called in thread safely fashion */
+
+		if (!pw)
+			fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"Failed to get pw_name of the user %d", uid);
+
+		pbsself->job_exit_status_file_prefix = fsd_asprintf(user_state_dir->val.string, pw->pw_name);
+	  }
+	else
+	  {
+		pbsself->job_exit_status_file_prefix = fsd_asprintf("%s/.drmaa", getenv("HOME"));
+	  }
+
+	if (mkdir(pbsself->job_exit_status_file_prefix, 0600) == -1 && errno != EEXIST) /* TODO it would be much better to do stat before */
+	  {
+		fsd_log_warning("Failed to create job state directory: %s.  Valid job exit status may not be available in some cases.", pbsself->job_exit_status_file_prefix)
+	  }
+
+
+	/* TODO purge old exit statuses files */
 
 	pbsself->super_apply_configuration(self); /* call method from the superclass */
 }
