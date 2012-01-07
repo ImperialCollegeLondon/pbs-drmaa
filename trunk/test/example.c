@@ -37,7 +37,7 @@
 #include <errno.h>
 
 #define SEND_MAIL     0
-#define WITH_BULK     1
+#define WITH_BULK     0
 #define EXPORT_ENVS   0
 #define DEBUG         1
 #define N_JOBS        8
