@@ -21,6 +21,7 @@
 #	include <config.h>
 #endif
 
+#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -114,6 +115,7 @@ pbsdrmaa_session_new( const char *contact )
 		self->status_attrl = pbsdrmaa_create_status_attrl();
 		self->max_retries_count = 3;
 		self->wait_thread_sleep_time = 1;
+		self->job_exit_status_file_prefix = NULL;
 
 		self->super.load_configuration( &self->super, "pbs_drmaa" );
 
@@ -135,7 +137,6 @@ retry_connect: /* Life... */
 				pbsdrmaa_exc_raise_pbs( "pbs_connect" );
 		 }
 
-		 self->job_exit_status_file_prefix = NULL;
 	 }
 	EXCEPT_DEFAULT
 	 {
@@ -293,9 +294,11 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 		pbsself->job_exit_status_file_prefix = fsd_asprintf("%s/.drmaa", getenv("HOME"));
 	  }
 
-	if (mkdir(pbsself->job_exit_status_file_prefix, 0600) == -1 && errno != EEXIST) /* TODO it would be much better to do stat before */
+	fsd_log_debug(("Trying to create state directory: %s", pbsself->job_exit_status_file_prefix));
+
+	if (mkdir(pbsself->job_exit_status_file_prefix, 0700) == -1 && errno != EEXIST) /* TODO it would be much better to do stat before */
 	  {
-		fsd_log_warning("Failed to create job state directory: %s.  Valid job exit status may not be available in some cases.", pbsself->job_exit_status_file_prefix)
+		fsd_log_warning(("Failed to create job state directory: %s. Valid job exit status may not be available in some cases.", pbsself->job_exit_status_file_prefix));
 	  }
 
 
