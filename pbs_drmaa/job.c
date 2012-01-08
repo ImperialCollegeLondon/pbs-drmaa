@@ -507,17 +507,25 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 int
 pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_prefix)
 {
-	char *status_file = NULL;
+	char *status_file = NULL, start_file = NULL;
 	FILE *fhandle = NULL;
 	int exit_status = -1;
 
 	fsd_log_enter(("({job_id=%s, job_state_dir_prefix=%s})", job_id, job_state_dir_prefix));
 
 	status_file = fsd_asprintf("%s/%s.exitcode", job_state_dir_prefix, job_id);
+	start_file = fsd_asprintf("%s/%s.started", job_id, job_state_dir_prefix);
 
 	if ((fhandle = fopen(status_file, "r")) == NULL)
 	 {
+		struct stat tmpstat;
+
 		fsd_log_error(("Failed to open job status file: %s", status_file));
+		if (stat(start_file, &tmpstat) == 0 && (tmpstat.st_mode & S_IFREG))
+		 {
+			exit_status = 143; /* SIGTERM */
+			fsd_log_info("But start file exist %s. Assuming that job was killed (exit_status=%d).", start_file, exit_status);
+		 }
 	 }
 	else
 	 {
@@ -526,6 +534,7 @@ pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_pre
 	 }
 
 	fsd_free(status_file);
+	fsd_free(start_file);
 
 	return exit_status;
 }
