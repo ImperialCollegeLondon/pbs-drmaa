@@ -46,21 +46,17 @@ static char rcsid[]
 #endif
 
 
-static void
-pbsdrmaa_job_control( fsd_job_t *self, int action );
+static void pbsdrmaa_job_control( fsd_job_t *self, int action );
 
-static void
-pbsdrmaa_job_update_status( fsd_job_t *self );
+static void pbsdrmaa_job_update_status( fsd_job_t *self );
 
-static void
-pbsdrmaa_job_on_missing( fsd_job_t *self );
+static void pbsdrmaa_job_on_missing( fsd_job_t *self );
 
-void
-pbsdrmaa_job_on_missing_standard( fsd_job_t *self );
+static void pbsdrmaa_job_on_missing_standard( fsd_job_t *self );
 
-static void
-pbsdrmaa_job_update( fsd_job_t *self, struct batch_status* );
+static void pbsdrmaa_job_update( fsd_job_t *self, struct batch_status* );
 
+static int pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_prefix);
 
 fsd_job_t *
 pbsdrmaa_job_new( char *job_id )
@@ -474,7 +470,7 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
 
-	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started )
+	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started && self->submit_time)
 		fsd_log_info(("Job on missing but WT is running. Skipping...")); /* TODO: try to provide implementation that uses accounting/server log files */
 	else
 		pbsdrmaa_job_on_missing_standard( self );	
@@ -484,49 +480,53 @@ void
 pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 {
 	fsd_drmaa_session_t *session = self->session;
+	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t *)session;
+	int exit_status = -1;
 	
-	unsigned missing_mask = 0;
-
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
 	fsd_log_warning(( "Job %s missing from DRM queue", self->job_id ));
 
-	switch( session->missing_jobs )
+	fsd_log_info(( "job_on_missing: last job_ps: %s (0x%02x)", drmaa_job_ps_to_str(self->state), self->state));
+
+	if( (exit_status = pbsdrmaa_job_read_exit_status(self->job_id, pbssession->job_exit_status_file_prefix)) == 0 )
 	{
-		case FSD_REVEAL_MISSING_JOBS:         missing_mask = 0;     break;
-		case FSD_IGNORE_MISSING_JOBS:         missing_mask = 0x73;  break;
-		case FSD_IGNORE_QUEUED_MISSING_JOBS:  missing_mask = 0x13;  break;
-	}
-	fsd_log_info(( "last job_ps: %s (0x%02x); mask: 0x%02x",
-				drmaa_job_ps_to_str(self->state), self->state, missing_mask ));
-
-	if( self->state < DRMAA_PS_DONE
-			&&  (self->state & ~missing_mask) )
-		fsd_exc_raise_fmt(
-				FSD_DRMAA_ERRNO_INVALID_JOB,
-				"self %s missing from queue", self->job_id
-				);
-
-	if( (self->flags & FSD_JOB_TERMINATED_MASK) == 0 )
-	{
-		self->flags &= FSD_JOB_TERMINATED_MASK;
-		self->flags |= FSD_JOB_TERMINATED;
-	}
-
-	if( (self->flags & FSD_JOB_ABORTED) == 0
-			&&  session->missing_jobs == FSD_IGNORE_MISSING_JOBS )
-	{ /* assume everthing was ok */
 		self->state = DRMAA_PS_DONE;
-		self->exit_status = 0;
+		self->exit_status = exit_status;
 	}
 	else
-	{ /* job aborted */
+	{
 		self->state = DRMAA_PS_FAILED;
-		self->exit_status = -1;
+		self->exit_status = exit_status;
 	}
 
 	fsd_cond_broadcast( &self->status_cond);
 
-	fsd_log_return(( "; job_ps=%s, exit_status=%d",
-				drmaa_job_ps_to_str(self->state), self->exit_status ));
+	fsd_log_return(( "; job_ps=%s, exit_status=%d", drmaa_job_ps_to_str(self->state), self->exit_status ));
+}
+
+int
+pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_prefix)
+{
+	char *status_file = NULL;
+	FILE *fhandle = NULL;
+	int exit_status = -1;
+
+	fsd_log_enter(("({job_id=%s, job_state_dir_prefix=%s})", job_id, job_state_dir_prefix));
+
+	status_file = fsd_asprintf("%s/%s.exitcode", job_id, job_state_dir_prefix);
+
+	if ((fhandle = fopen(status_file, "r")) == NULL)
+	 {
+		fsd_log_error(("Failed to open job status file: %s", status_file));
+	 }
+	else
+	 {
+		(void)fscanf(fhandle, "%d", &exit_status); /*on error exit_status == -1 */
+		fclose(fhandle);
+	 }
+
+	fsd_free(status_file);
+
+	return exit_status;
 }
 
