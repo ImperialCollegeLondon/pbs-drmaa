@@ -353,7 +353,7 @@ pbsdrmaa_submit_apply_job_script( pbsdrmaa_submit_t *self )
 		s = script;
 		if( wd != NULL )
 			s += sprintf( s, "cd %s; ", wd );
-		s += sprintf( s, "touch %s/$PBS_JOBID.started;", ((pbsdrmaa_session_t *)self->session)->job_exit_status_file_prefix)
+		s += sprintf( s, "touch %s/$PBS_JOBID.started;", ((pbsdrmaa_session_t *)self->session)->job_exit_status_file_prefix);
 		s += sprintf( s, "%s", executable );
 		if( argv != NULL )
 			for( i = argv;  *i != NULL;  i++ )

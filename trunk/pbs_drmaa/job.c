@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <drmaa_utils/drmaa.h>
 #include <drmaa_utils/drmaa_util.h>
@@ -507,14 +508,14 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
 int
 pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_prefix)
 {
-	char *status_file = NULL, start_file = NULL;
+	char *status_file = NULL, *start_file = NULL;
 	FILE *fhandle = NULL;
 	int exit_status = -1;
 
 	fsd_log_enter(("({job_id=%s, job_state_dir_prefix=%s})", job_id, job_state_dir_prefix));
 
 	status_file = fsd_asprintf("%s/%s.exitcode", job_state_dir_prefix, job_id);
-	start_file = fsd_asprintf("%s/%s.started", job_id, job_state_dir_prefix);
+	start_file = fsd_asprintf("%s/%s.started", job_state_dir_prefix, job_id);
 
 	if ((fhandle = fopen(status_file, "r")) == NULL)
 	 {
@@ -524,8 +525,14 @@ pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_pre
 		if (stat(start_file, &tmpstat) == 0 && (tmpstat.st_mode & S_IFREG))
 		 {
 			exit_status = 143; /* SIGTERM */
-			fsd_log_info("But start file exist %s. Assuming that job was killed (exit_status=%d).", start_file, exit_status);
+			fsd_log_info(("But start file exist %s. Assuming that job was killed (exit_status=%d).", start_file, exit_status));
 		 }
+		else
+		 {
+			fsd_log_error(("Start file not found: %s", start_file));
+		 }
+	
+
 	 }
 	else
 	 {
