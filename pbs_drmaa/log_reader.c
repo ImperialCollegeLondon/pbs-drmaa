@@ -230,6 +230,18 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 						if ( field_id == PBSDRMAA_FLD_ID_DATE)
 						 {
 							event_timestamp = field_token;
+#ifdef PBS_PBS_PROFESSIONAL
+							/*additional check */
+							TRY
+							{
+							 (void)pbsdrmaa_parse_log_timestamp(event_timestamp, timestamp_unix, sizeof(timestamp_unix));
+							}
+							EXCEPT_DEFAULT
+							{
+								fsd_log_error(("Failed to parse timestamp: %s. Log corrupted?", event_timestamp));
+							}
+							END_TRY
+#endif
 						 }
 						else if ( field_id == PBSDRMAA_FLD_ID_EVENT)
 						 {
@@ -509,6 +521,7 @@ pbsdrmaa_select_file( pbsdrmaa_log_reader_t * self )
 	 {
 		int num_tries = 0;
 		struct tm tm; 
+		char *old_log_path = NULL;
 		
 		fsd_log_enter((""));
 		
@@ -521,8 +534,7 @@ pbsdrmaa_select_file( pbsdrmaa_log_reader_t * self )
 				
 		#define DRMAA_WAIT_THREAD_MAX_TRIES (12)
 		/* generate new date, close file and open new */
-		if (self->log_path)
-			fsd_free(self->log_path);
+		old_log_path = self->log_path;
 
 		self->log_path = fsd_asprintf("%s/server_logs/%04d%02d%02d", pbssession->pbs_home, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
 
@@ -561,9 +573,19 @@ pbsdrmaa_select_file( pbsdrmaa_log_reader_t * self )
 			 }
 			self->first_open = false;
 		 }
+		else if (old_log_path && strcmp(old_log_path, self->log_path))
+		 {
+			fsd_log_info(("PBS restarted. Seeking log file %u", (unsgined int)self->current_offset));
+			if(fseek(self->fhandle, self->current_offset, SEEK_SET) == (off_t) -1)
+			 {
+				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"fseek error");
+			 }
+		 }
 
 		self->date_changed = false;
 		
+		fsd_free(old_log_path);
+
 		fsd_log_return((""));
 	}	
 }
