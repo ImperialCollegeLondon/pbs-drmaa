@@ -513,7 +513,7 @@ pbsdrmaa_job_read_exit_status( const char *job_id, const char *job_state_dir_pre
 
 	fsd_log_enter(("({job_id=%s, job_state_dir_prefix=%s})", job_id, job_state_dir_prefix));
 
-	status_file = fsd_asprintf("%s/%s.exitcode", job_id, job_state_dir_prefix);
+	status_file = fsd_asprintf("%s/%s.exitcode", job_state_dir_prefix, job_id);
 
 	if ((fhandle = fopen(status_file, "r")) == NULL)
 	 {
