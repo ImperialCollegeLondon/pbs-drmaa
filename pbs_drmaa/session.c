@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <pbs_ifl.h>
 #include <pbs_error.h>
@@ -124,6 +125,8 @@ pbsdrmaa_session_new( const char *contact )
 		 {
 			int tries_left = self->max_retries_count;
 			int sleep_time = 1;
+			/*ignore SIGPIPE - otheriwse pbs_disconnect cause the program to exit */
+			signal(SIGPIPE, SIG_IGN);
 retry_connect: /* Life... */
 			self->pbs_conn = pbs_connect( self->super.contact );
 			fsd_log_info(( "pbs_connect(%s) =%d", self->super.contact, self->pbs_conn ));
