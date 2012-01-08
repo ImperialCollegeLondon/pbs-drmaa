@@ -573,9 +573,9 @@ pbsdrmaa_select_file( pbsdrmaa_log_reader_t * self )
 			 }
 			self->first_open = false;
 		 }
-		else if (old_log_path && strcmp(old_log_path, self->log_path))
+		else if (old_log_path && strcmp(old_log_path, self->log_path) == 0)
 		 {
-			fsd_log_info(("PBS restarted. Seeking log file %u", (unsgined int)self->current_offset));
+			fsd_log_info(("PBS restarted. Seeking log file %u", (unsigned int)self->current_offset));
 			if(fseek(self->fhandle, self->current_offset, SEEK_SET) == (off_t) -1)
 			 {
 				fsd_exc_raise_fmt(FSD_ERRNO_INTERNAL_ERROR,"fseek error");
