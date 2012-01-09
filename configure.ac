@@ -1,4 +1,4 @@
-AC_INIT([DRMAA for PBS Pro], [1.0.11], [mamonski@man.poznan.pl], [pbs-drmaa])
+AC_INIT([DRMAA for PBS Pro], [1.0.12], [mamonski@man.poznan.pl], [pbs-drmaa])
 AC_PREREQ(2.59)
 AC_REVISION([$Id$])
 AC_COPYRIGHT([
@@ -22,8 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 PBS_DRMAA_MAJOR=1
 PBS_DRMAA_MINOR=0
-PBS_DRMAA_MICRO=11
-PBS_DRMAA_VERSION_INFO=1:11:0
+PBS_DRMAA_MICRO=12
+PBS_DRMAA_VERSION_INFO=1:12:0
 AC_SUBST([PBS_DRMAA_MAJOR])
 AC_SUBST([PBS_DRMAA_MINOR])
 AC_SUBST([PBS_DRMAA_MICRO])
