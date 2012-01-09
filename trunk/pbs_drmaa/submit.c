@@ -155,7 +155,7 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 				char *res_token = NULL;
 				/* matlab:2,simulink:1 */
 
-				for (res_token = strtok_r(value_copy, ",", &tok_comma_ctx); res_token; res_token = strtok_r(NULL, ",", &tok_comma_ctx))
+				for (res_token = strtok_r(value_copy, ";", &tok_comma_ctx); res_token; res_token = strtok_r(NULL, ";", &tok_comma_ctx))
 				 {
 					char *value_p = strstr(res_token, ":");
 
