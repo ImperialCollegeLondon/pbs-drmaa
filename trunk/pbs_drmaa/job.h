@@ -36,6 +36,7 @@ pbsdrmaa_job_new( char *job_id );
 
 struct pbsdrmaa_job_s {
 	fsd_job_t super;
+	time_t missing_time; /* The time when job was seen as missing for the first time */
 
 	void (*
 	update)( fsd_job_t *self, struct batch_status *status );

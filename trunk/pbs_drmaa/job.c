@@ -67,6 +67,7 @@ pbsdrmaa_job_new( char *job_id )
 	self->super.control = pbsdrmaa_job_control;
 	self->super.update_status = pbsdrmaa_job_update_status;
 	self->super.on_missing = pbsdrmaa_job_on_missing;
+	self->missing_time = 0;
 	self->update = pbsdrmaa_job_update;
 	return (fsd_job_t*)self;
 }
@@ -470,8 +471,21 @@ void
 pbsdrmaa_job_on_missing( fsd_job_t *self )
 {
 	pbsdrmaa_session_t *pbssession = (pbsdrmaa_session_t*)self->session;
+	pbsdrmaa_job_t *pbsself = (pbsdrmaa_job_t *)self;
+	
+	if (!pbsself->missing_time)
+	 {
+		pbsself->missing_time = time(NULL);
+	 }
 
-	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started && self->submit_time)
+	fsd_log_info(("pbsdrmaa_job_on_missing: pbs_home=%s, wait_thread_started=%d, submit_time=%d, missing_time=%d", 
+		pbssession->pbs_home, 
+		pbssession->super.wait_thread_started, 
+		self->submit_time, 
+		pbsself->missing_time));
+	
+	#define DRMAA_MAX_MISSING_TIME (30)
+	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started && self->submit_time && (time(NULL) - pbsself->missing_time < DRMAA_MAX_MISSING_TIME))
 		fsd_log_info(("Job on missing but WT is running. Skipping...")); /* TODO: try to provide implementation that uses accounting/server log files */
 	else
 		pbsdrmaa_job_on_missing_standard( self );	
