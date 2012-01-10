@@ -516,6 +516,7 @@ pbsdrmaa_job_on_missing_standard( fsd_job_t *self )
         fsd_log_info(("job_on_missing evaluation result: state=%d exit_status=%d", self->state, self->exit_status));
 
 	fsd_cond_broadcast( &self->status_cond);
+	fsd_cond_broadcast( &self->session->wait_condition );
 
 	fsd_log_return(( "; job_ps=%s, exit_status=%d", drmaa_job_ps_to_str(self->state), self->exit_status ));
 }
