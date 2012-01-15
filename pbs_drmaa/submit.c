@@ -209,7 +209,7 @@ retry:
 
 		if( job_id == NULL )
 		{
-			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED)
+			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
 			 {
 				pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self->session;
 				if (pbsself->pbs_conn >= 0 )

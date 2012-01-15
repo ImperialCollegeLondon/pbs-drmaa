@@ -151,9 +151,9 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 retry_connect:
 			if ( rc == PBSE_NONE )
 				break;
-			else if (( rc == PBSE_INTERNAL || rc == PBSE_PROTOCOL || rc == PBSE_EXPIRED) && (tries_left--))
+			else if (( rc == PBSE_INTERNAL || rc == PBSE_PROTOCOL || rc == PBSOLDE_PROTOCOL || rc == PBSE_EXPIRED || rc == PBSOLDE_EXPIRED) && (tries_left--))
 			 {
-				if (rc == PBSE_PROTOCOL || rc == PBSE_EXPIRED)
+				if (rc == PBSE_PROTOCOL || rc == PBSE_EXPIRED || rc == PBSOLDE_PROTOCOL || rc == PBSOLDE_EXPIRED)
 				 {
 					if ( session->pbs_conn >= 0)
 						pbs_disconnect( session->pbs_conn );
@@ -242,7 +242,9 @@ retry:
 				case PBSE_UNKJOBID:
 					break;
 				case PBSE_PROTOCOL:
+				case PBSOLDE_PROTOCOL:
 				case PBSE_EXPIRED:
+				case PBSOLDE_EXPIRED:
 					if ( session->pbs_conn >= 0 )
 						pbs_disconnect( session->pbs_conn );
 					fsd_log_info(("Protocol error. Reconnecting..."));

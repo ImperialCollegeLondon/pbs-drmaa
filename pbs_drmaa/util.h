@@ -24,6 +24,11 @@
 #	include <config.h>
 #endif
 
+/*compatibility hack - ugly but help to keep binary compatibility :/ */
+#define PBSOLDE_PROTOCOL 15031
+#define PBSOLDE_EXPIRED 15020
+
+
 void pbsdrmaa_exc_raise_pbs( const char *function );
 int pbsdrmaa_map_pbs_errno( int _pbs_errno );
 
