@@ -337,7 +337,7 @@ retry:
 		fsd_log_info(( "pbs_statjob( fd=%d, job_id=NULL, attribs={...} ) =%p", pbsself->pbs_conn, (void*)status ));
 		if( status == NULL  &&  pbs_errno != 0 )
 		 {
-			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED)
+			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
 			 {
 				if ( pbsself->pbs_conn >= 0)
 					pbs_disconnect( pbsself->pbs_conn );
