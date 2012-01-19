@@ -252,6 +252,10 @@ pbsdrmaa_write_tmpfile( const char *content, size_t len )
 		fd = mkstemp( name );
 		if( fd < 0 )
 			fsd_exc_raise_sys(0);
+
+		if( fchmod(fd, 0600 ) != 0)
+			fsd_exc_raise_sys(0);
+
 		while( len > 0 )
 		 {
 			size_t written = write( fd, content, len );
