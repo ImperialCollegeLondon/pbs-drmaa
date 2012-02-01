@@ -209,21 +209,32 @@ retry:
 
 		if( job_id == NULL )
 		{
+			fsd_log_error(( "pbs_submit failed, pbs_errno = %d", pbs_errno ));
 			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
 			 {
 				pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self->session;
+
+				fsd_log_error(( "Protocol error. Retrying..." ));
+
 				if (pbsself->pbs_conn >= 0 )
 					pbs_disconnect( pbsself->pbs_conn );
 retry_connect:
 				sleep(sleep_time++);
 				pbsself->pbs_conn = pbs_connect( pbsself->super.contact );
-				if( pbsself->pbs_conn < 0)
+				if( pbsself->pbs_conn < 0) 
+				 {
 					if (tries_left--)
 						goto retry_connect;
 					else
 						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+				 }
 				else
-					goto retry;
+				 {
+					if (tries_left--)
+                                                goto retry;
+                                        else
+						pbsdrmaa_exc_raise_pbs( "pbs_submit" );
+				 }
 			 }
 			else
 			 {
