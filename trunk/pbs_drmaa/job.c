@@ -242,9 +242,13 @@ retry:
 				case PBSE_UNKJOBID:
 					break;
 				case PBSE_PROTOCOL:
+#if PBSOLDE_PROTOCOL != PBSE_PROTOCOL
 				case PBSOLDE_PROTOCOL:
+#endif
 				case PBSE_EXPIRED:
+#if PBSOLDE_EXPIRED != PBSE_EXPIRED
 				case PBSOLDE_EXPIRED:
+#endif
 					if ( session->pbs_conn >= 0 )
 						pbs_disconnect( session->pbs_conn );
 					fsd_log_info(("Protocol error. Reconnecting..."));
@@ -483,8 +487,8 @@ pbsdrmaa_job_on_missing( fsd_job_t *self )
 	fsd_log_info(("pbsdrmaa_job_on_missing: pbs_home=%s, wait_thread_started=%d, submit_time=%d, missing_time=%d", 
 		pbssession->pbs_home, 
 		pbssession->super.wait_thread_started, 
-		self->submit_time, 
-		pbsself->missing_time));
+		(int)self->submit_time, 
+		(int)pbsself->missing_time));
 	
 	#define DRMAA_MAX_MISSING_TIME (30)
 	if( pbssession->pbs_home != NULL && pbssession->super.wait_thread_started && self->submit_time && (time(NULL) - pbsself->missing_time < DRMAA_MAX_MISSING_TIME))
