@@ -354,7 +354,7 @@ pbsdrmaa_submit_apply_job_script( pbsdrmaa_submit_t *self )
 		if( input_path != NULL )
 			script_len += strlen(" <") + strlen(input_path);
 
-		script_len += strlen("; echo $? >") + strlen(((pbsdrmaa_session_t *)self->session)->job_exit_status_file_prefix) + strlen("/$PBS_JOBID.exitcode");
+		script_len += strlen(";EXIT_CODE=$?; echo $EXIT_CODE >") + strlen(((pbsdrmaa_session_t *)self->session)->job_exit_status_file_prefix) + strlen("/$PBS_JOBID.exitcode; exit $EXIT_CODE");
 	 }
 
 	fsd_calloc( script, script_len+1, char );
@@ -372,7 +372,7 @@ pbsdrmaa_submit_apply_job_script( pbsdrmaa_submit_t *self )
 		if( input_path != NULL )
 			s += sprintf( s, " <%s", input_path );
 
-		s += sprintf( s, "; echo $? >%s/$PBS_JOBID.exitcode", ((pbsdrmaa_session_t *)self->session)->job_exit_status_file_prefix);
+		s += sprintf( s, ";EXIT_CODE=$?; echo $EXIT_CODE >%s/$PBS_JOBID.exitcode; exit $EXIT_CODE", ((pbsdrmaa_session_t *)self->session)->job_exit_status_file_prefix);
 
 		fsd_assert( s == script+script_len );
 	 }
