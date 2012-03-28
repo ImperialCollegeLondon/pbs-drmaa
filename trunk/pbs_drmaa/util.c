@@ -124,7 +124,7 @@ pbsdrmaa_exc_raise_pbs( const char *function )
 #ifndef PBS_PROFESSIONAL_NO_LOG
 	message = pbse_to_txt( pbs_errno );
 #else
-	message = "pbs error";
+	message = "PBS error";
 #endif
 
 	fsd_errno = pbsdrmaa_map_pbs_errno( _pbs_errno );
@@ -134,7 +134,7 @@ pbsdrmaa_exc_raise_pbs( const char *function )
 				_pbs_errno, message,
 				fsd_errno, fsd_strerror(fsd_errno)
 				));
-	fsd_exc_raise_fmt( fsd_errno, "%s: %s", function, message );
+	fsd_exc_raise_fmt( fsd_errno, " %s", function, message );
 }
 
 
