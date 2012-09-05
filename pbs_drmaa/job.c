@@ -207,6 +207,11 @@ pbsdrmaa_job_update_status( fsd_job_t *self )
 	 {
 		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
 retry:
+		if (session->pbs_conn < 0) {
+			fsd_log_info(("No connection with pbs. Reconnecting"));
+			goto retry_connect;
+		}
+
 
 #ifdef PBS_PROFESSIONAL
 		status = pbs_statjob( session->pbs_conn, self->job_id, NULL, NULL );
@@ -225,12 +230,12 @@ retry:
 				fsd_log_debug(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
 #else
 #  ifndef PBS_PROFESSIONAL_NO_LOG
-			if ( pbs_errno != PBSE_UNKJOBID )
+			if ( pbs_errno != PBSE_UNKJOBID && pbs_errno != PBSE_HISTJOBID )
 				fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
 			else
 				fsd_log_debug(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
 #  else
-			if ( pbs_errno != PBSE_UNKJOBID )
+			if ( pbs_errno != PBSE_UNKJOBID && pbs_errno != PBSE_HISTJOBID )
 				fsd_log_error(("pbs_statjob error: %d", pbs_errno));
 			else
 				fsd_log_debug(("pbs_statjob error: %d", pbs_errno));
@@ -240,6 +245,9 @@ retry:
 			switch( pbs_errno )
 			 {
 				case PBSE_UNKJOBID:
+#ifdef PBS_PROFESSIONAL
+				case PBSE_HISTJOBID:
+#endif
 					break;
 				case PBSE_PROTOCOL:
 #if PBSOLDE_PROTOCOL != PBSE_PROTOCOL
@@ -258,7 +266,7 @@ retry_connect:
 					if( session->pbs_conn < 0 )
 					 {
 						if (tries_left--) {
-							fsd_log_info(("%d tries left. Retrying...", tries_left));
+							fsd_log_info(("Retrying... (%d tries left)", tries_left));
 							goto retry_connect;
 						} else {
 							fsd_log_error(("No more tries left... Throwing exception"));

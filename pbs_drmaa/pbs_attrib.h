@@ -50,6 +50,8 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_HOST                   "Resource_List.host"
 #define PBSDRMAA_NODES                  "Resource_List.nodes"
 #define PBSDRMAA_SOFTWARE               "Resource_List.software"
+#define PBSDRMAA_PLACE                  "Resource_List.place"
+#define PBSDRMAA_SELECT                 "Resource_List.select"
 #define PBSDRMAA_PROCS                  "Resource_List.procs"
 #define PBSDRMAA_NCPUS                  "Resource_List.ncpus"
 #define PBSDRMAA_MAIL_POINTS            "Mail_Points"
@@ -110,6 +112,8 @@ typedef enum {
 	PBSDRMAA_ATTR_PROCS,
 	PBSDRMAA_ATTR_NCPUS,
 	PBSDRMAA_ATTR_SOFTWARE,
+	PBSDRMAA_ATTR_PLACE,
+	PBSDRMAA_ATTR_SELECT,
 	PBSDRMAA_ATTR_MAIL_POINTS,
 	PBSDRMAA_ATTR_OUTPUT_PATH,
 	PBSDRMAA_ATTR_PRIORITY,
