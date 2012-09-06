@@ -88,6 +88,11 @@ struct pbsdrmaa_session_s {
 	 * The prefix of the directory where the job exit status information is stored (default: %HOME/.pbs-drmaa/
 	 */
 	char *job_exit_status_file_prefix;
+
+	/*
+	 * Whether to cache PBS Connection
+	 */
+	bool cache_connection;
 };
 
 #endif /* __PBS_DRMAA__SESSION_H */

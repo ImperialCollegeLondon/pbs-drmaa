@@ -28,6 +28,8 @@
 
 typedef struct pbsdrmaa_submit_s pbsdrmaa_submit_t;
 
+#define PBSDRMAA_SUBMIT_FILTER_ENV "PBSDRMAA_SUBMIT_FILTER"
+
 pbsdrmaa_submit_t *
 pbsdrmaa_submit_new( fsd_drmaa_session_t *session,
 		const fsd_template_t *job_template, int bulk_idx );
