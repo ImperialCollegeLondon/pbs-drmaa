@@ -23,6 +23,7 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <pbs_ifl.h>
 #include <pbs_error.h>
@@ -55,6 +56,9 @@ static char *pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self );
 static void pbsdrmaa_submit_eval( pbsdrmaa_submit_t *self );
 
 static void pbsdrmaa_submit_set( pbsdrmaa_submit_t *self, const char *pbs_attr, char *value, unsigned placeholders );
+
+static struct attrl *pbsdrmaa_submit_filter(struct attrl *pbs_attr);
+
 
 static void pbsdrmaa_submit_apply_defaults( pbsdrmaa_submit_t *self );
 static void pbsdrmaa_submit_apply_job_script( pbsdrmaa_submit_t *self );
@@ -199,6 +203,9 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 			 }
 		 }
 
+
+		pbs_attr = pbsdrmaa_submit_filter(pbs_attr);
+
 		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
 retry:
 		job_id = pbs_submit( ((pbsdrmaa_session_t*)self->session)->pbs_conn,
@@ -231,8 +238,8 @@ retry_connect:
 				else
 				 {
 					if (tries_left--)
-                                                goto retry;
-                                        else
+						goto retry;
+					else
 						pbsdrmaa_exc_raise_pbs( "pbs_submit" );
 				 }
 			 }
@@ -691,7 +698,6 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 		return;
 
 	{
-		fsd_iter_t * volatile args_list = fsd_iter_new(NULL, 0);
 		fsd_template_t *pbs_attr = self->pbs_job_attributes;
 		char *arg = NULL;
 		volatile char * native_spec_copy = fsd_strdup(native_specification);
@@ -798,17 +804,38 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 				fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE,
 						"Invalid native specification: %s",
 						native_specification);
-
 		 }
 		FINALLY
 		 {
 #ifndef PBS_PROFESSIONAL
 			pbs_attr->set_attr( pbs_attr, "submit_args", native_specification);
 #endif
-			args_list->destroy(args_list);
 			fsd_free((char *)native_spec_copy);
 		 }
 		END_TRY
 	}
+}
+
+struct attrl *
+pbsdrmaa_submit_filter(struct attrl *pbs_attr)
+{
+	fsd_log_enter(( "({pbs_attr=%p})", pbs_attr));
+
+	if (getenv(PBSDRMAA_SUBMIT_FILTER_ENV) == NULL) {
+		return pbs_attr;
+	} else {
+		struct attrl *ii = NULL;
+		const char *submit_filter = getenv(PBSDRMAA_SUBMIT_FILTER_ENV);
+
+		fsd_log_info(("Executing filter script: %s", submit_filter));
+
+		for (ii = pbs_attr; ii; ii = ii->next) {
+			fsd_log_info(("FILTER: %s=%s ", ii->name, ii->value));
+		}
+
+		return pbs_attr;
+	}
+
+
 }
 
