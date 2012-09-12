@@ -29,6 +29,7 @@
 #include <pbs_error.h>
 
 #include <drmaa_utils/conf.h>
+#include <drmaa_utils/exec.h>
 #include <drmaa_utils/drmaa.h>
 #include <drmaa_utils/drmaa_util.h>
 #include <drmaa_utils/datetime.h>
@@ -819,23 +820,95 @@ pbsdrmaa_submit_apply_native_specification( pbsdrmaa_submit_t *self,
 struct attrl *
 pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 {
-	fsd_log_enter(( "({pbs_attr=%p})", pbs_attr));
+	fsd_log_enter(( "({pbs_attr=%p})", (void*)pbs_attr));
 
-	if (getenv(PBSDRMAA_SUBMIT_FILTER_ENV) == NULL) {
+	if (getenv(PBSDRMAA_SUBMIT_FILTER_ENV) == NULL) 
+	  {
 		return pbs_attr;
-	} else {
+	  } 
+	else 
+	  {
 		struct attrl *ii = NULL;
+		char *empty_args[] = { NULL };
+		int exit_status = -1;
 		const char *submit_filter = getenv(PBSDRMAA_SUBMIT_FILTER_ENV);
+		char *stdin_buf = NULL;
+		int stdin_size = 0;
+		char *stdout_buf = NULL;
+		char *stderr_buf = NULL;
+		char *output_line = NULL;
+		char *ctx = NULL;
 
-		fsd_log_info(("Executing filter script: %s", submit_filter));
+		fsd_log_debug(("Executing filter script: %s", submit_filter));
+		
+		
+		for (ii = pbs_attr; ii; ii = ii->next) 
+		  {
+			stdin_size += strlen(ii->name) + strlen(ii->value) + 2 /* '=' and '\n' */;
+			if (ii->resource)
+			  {
+				stdin_size += strlen(ii->resource) +  1; /* '.' */
+			  }
+		  }
 
-		for (ii = pbs_attr; ii; ii = ii->next) {
-			fsd_log_info(("FILTER: %s=%s ", ii->name, ii->value));
-		}
+		stdin_size+=1; /* '\0' */
+
+		stdin_buf = fsd_calloc(stdin_buf, stdin_size, char);
+		stdin_buf[0] = '\0';
+
+		for (ii = pbs_attr; ii; ii = ii->next) 
+		  {
+			strcat(stdin_buf, ii->name);
+			if (ii->resource)
+			  {
+				strcat(stdin_buf, ".");
+				strcat(stdin_buf, ii->resource);
+			  }
+			strcat(stdin_buf, "=");
+			strcat(stdin_buf, ii->value);
+			strcat(stdin_buf, "\n");
+		  }
+		
+		exit_status = fsd_exec_sync(submit_filter, empty_args, stdin_buf, &stdout_buf, &stderr_buf);
+
+		if (exit_status != 0)
+		  {
+			fsd_log_error(("Filter script %s exited with non-zero code: %d", submit_filter, exit_status));
+			fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_VALUE, "Submit filter script failed (code: %d, message: %s)", exit_status, stderr_buf);
+		  }
+		
+		fsd_log_debug(("Submit filter exit_status=%d, stderr=%s", exit_status, stderr_buf));
+
+		pbsdrmaa_free_attrl(pbs_attr);
+		pbs_attr = NULL;
+
+		/* exit_status == 0 */
+		for (output_line = strtok_r(stdin_buf, "\n", &ctx);  output_line ; output_line = strtok_r(NULL, "\n", &ctx))
+		 {
+			char *attr_name = NULL;
+			char *attr_value = NULL;
+
+			attr_value = strstr(output_line,"=");
+			attr_name = output_line;
+
+			if (!attr_value)
+			  {
+				fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_FORMAT, "Invalid output line of submit filter:", output_line);
+			  }
+			else
+			  {
+				*attr_value = '\0';
+				attr_value++; 
+			  }
+			
+
+			fsd_log_debug(("Submit filter generated attribute: name=%s, value=%s", attr_name, attr_value));
+			pbs_attr = pbsdrmaa_add_attr( pbs_attr, attr_name, attr_value );
+                 }
+		
 
 		return pbs_attr;
-	}
-
+	  }
 
 }
 
