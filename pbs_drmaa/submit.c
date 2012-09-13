@@ -883,7 +883,7 @@ pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 		pbs_attr = NULL;
 
 		/* exit_status == 0 */
-		for (output_line = strtok_r(stdin_buf, "\n", &ctx);  output_line ; output_line = strtok_r(NULL, "\n", &ctx))
+		for (output_line = strtok_r(stdout_buf, "\n", &ctx);  output_line ; output_line = strtok_r(NULL, "\n", &ctx))
 		 {
 			char *attr_name = NULL;
 			char *attr_value = NULL;
