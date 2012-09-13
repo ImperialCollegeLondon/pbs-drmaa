@@ -884,7 +884,7 @@ pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 
 		/* exit_status == 0 */
 		for (output_line = strtok_r(stdout_buf, "\n", &ctx);  output_line ; output_line = strtok_r(NULL, "\n", &ctx))
-		 {
+		  {
 			char *attr_name = NULL;
 			char *attr_value = NULL;
 
@@ -902,9 +902,8 @@ pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 			  }
 			
 
-			fsd_log_debug(("Submit filter generated attribute: name=%s, value=%s", attr_name, attr_value));
 			pbs_attr = pbsdrmaa_add_attr( pbs_attr, attr_name, attr_value );
-                 }
+      }
 		
 
 		return pbs_attr;
