@@ -222,7 +222,6 @@ done
 AC_CONFIG_FILES([
 	Makefile
 	drmaa_utils/Makefile
-  tests/Makefile
 	Doxyfile
 ])
 AC_CONFIG_HEADERS([config.h])
