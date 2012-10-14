@@ -21,5 +21,5 @@ find . -name \*.o -exec rm -f {} \;
 find . -name \*.lo* -exec rm -f {} \;
 find . -name \*.la* -exec rm -f {} \;
 
-(cd drmaa_utils && sh autoclean.sh "$@")
+(cd drmaa2_utils && sh autoclean.sh "$@")
 echo "done."

@@ -45,5 +45,5 @@ elif [ -f config.log ]; then
 			 2>/dev/null`
 fi
 
-(cd drmaa_utils && run sh autogen.sh "$@")
+(cd drmaa2_utils && run sh autogen.sh "$@")
 run ./configure ${args}
