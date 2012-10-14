@@ -24,5 +24,5 @@ EXTRA_DIST = \
  m4/bison_ylwrap.sh \
  m4/missing-dev-prog.sh
 
-SUBDIRS = drmaa_utils tests
+SUBDIRS = drmaa_utils
 
