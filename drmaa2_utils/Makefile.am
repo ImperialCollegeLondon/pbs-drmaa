@@ -1,7 +1,7 @@
-# $Id$
+# $Id: Makefile.am 13 2011-04-20 15:41:43Z mmamonski $
 #
-# FedStage DRMAA for PBS Pro
-# Copyright (C) 2006-2009  FedStage Systems
+# FedStage DRMAA utilities library
+# Copyright (C) 2006-2008  FedStage Systems
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = \
  autoclean.sh \
  autogen.sh \
+ m4/bison_ylwrap.sh \
  m4/missing-dev-prog.sh
 
-SUBDIRS = drmaa2_utils pbs_drmaa
+SUBDIRS = drmaa_utils tests
+

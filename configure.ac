@@ -1,10 +1,9 @@
-AC_INIT([DRMAA for PBS Pro], [1.0.7], [mamonski@man.poznan.pl], [pbs-drmaa])
+AC_INIT([DRMAA for Torque/PBS Pro], [2.0.0], [mamonski@man.poznan.pl], [pbs-drmaa2])
 AC_PREREQ(2.59)
 AC_REVISION([$Id$])
 AC_COPYRIGHT([
 DRMAA for Torque/PBS Professional
-Copyright (C) 2006-2009  FedStage Systems
-Copyright (C) 2011  Poznan Supercomputing and Networking Center
+Copyright (C) 2012  Poznan Supercomputing and Networking Center
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,10 +19,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ])
 
-PBS_DRMAA_MAJOR=1
+PBS_DRMAA_MAJOR=2
 PBS_DRMAA_MINOR=0
-PBS_DRMAA_MICRO=7
-PBS_DRMAA_VERSION_INFO=1:7:0
+PBS_DRMAA_MICRO=0
+PBS_DRMAA_VERSION_INFO=2:0:0
 AC_SUBST([PBS_DRMAA_MAJOR])
 AC_SUBST([PBS_DRMAA_MINOR])
 AC_SUBST([PBS_DRMAA_MICRO])
@@ -170,7 +169,7 @@ AC_CONFIG_FILES([
 	pbs_drmaa/Makefile
 ])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_SUBDIRS([drmaa_utils])
+AC_CONFIG_SUBDIRS([drmaa2_utils])
 AC_OUTPUT
 
 echo
