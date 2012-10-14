@@ -57,9 +57,6 @@ if test x$ac_cv_prog_cc_stdc = xno; then
 	AC_MSG_ERROR([ANSI C compiler is required])
 fi
 
-if test x$GCC = xyes; then
-	CFLAGS="-pedantic -ansi ${CFLAGS}"
-fi
 AM_CONDITIONAL([GCC], [test x$GCC = xyes])
 
 AX_GCC_WARNINGS()
@@ -167,6 +164,7 @@ fi
 AC_CONFIG_FILES([
 	Makefile
 	pbs_drmaa/Makefile
+  drmaa2_testsuite/Makefile
 ])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SUBDIRS([drmaa2_utils])

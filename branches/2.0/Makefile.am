@@ -1,7 +1,7 @@
 # $Id$
 #
-# FedStage DRMAA for PBS Pro
-# Copyright (C) 2006-2009  FedStage Systems
+# DRMAA for Torque/PBS Professional
+# Copyright (C) 2012  Poznan Supercomputing and Networking Center
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,4 +23,4 @@ EXTRA_DIST = \
  autogen.sh \
  m4/missing-dev-prog.sh
 
-SUBDIRS = drmaa2_utils pbs_drmaa
+SUBDIRS = drmaa2_utils drmaa2_testsuite pbs_drmaa

@@ -82,6 +82,12 @@ static char rcsid[]
 	return NULL;
 
 
+/*
+ * 109 functions in total
+ *
+ * implemented so far:
+ * 14/10/2012 - 0
+ */
 
 void drmaa2_string_free(drmaa2_string *ptr)
 {
