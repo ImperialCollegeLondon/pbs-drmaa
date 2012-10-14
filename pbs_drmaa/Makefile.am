@@ -1,7 +1,7 @@
 # $Id$
 # 
-# FedStage DRMAA for PBS Professional
-# Copyright (C) 2006-2009  FedStage Systems
+# DRMAA for Torque/PBS Professional
+# Copyright (C) 2012  Poznan Supercomputing and Networking Center
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,22 +19,22 @@
 
 GPERF       = @GPERF@
 GPERFFLAGS  = --readonly-tables
-AM_CPPFLAGS = @PBS_INCLUDES@ -I$(top_srcdir)/drmaa_utils -fPIC
+AM_CPPFLAGS = @PBS_INCLUDES@ -I$(top_srcdir)/drmaa2_utils -fPIC
 
 lib_LTLIBRARIES = libdrmaa.la
 
 libdrmaa_la_SOURCES = \
- drmaa.c \
- job.c job.h \
- pbs_attrib.gperf pbs_attrib.h \
- session.c session.h \
- submit.c submit.h \
- util.c util.h \
- log_reader.c log_reader.h 
+ drmaa.c 
+# job.c job.h \
+# pbs_attrib.gperf pbs_attrib.h \
+# session.c session.h \
+# submit.c submit.h \
+# util.c util.h \
+# log_reader.c log_reader.h 
 BUILT_SOURCES       = pbs_attrib.c
 EXTRA_DIST          = pbs_attrib.c
 dist_sysconf_DATA   = pbs_drmaa.conf.example
-libdrmaa_la_LIBADD  = ../drmaa_utils/drmaa_utils/libdrmaa_utils.la @PBS_LIBS@
+libdrmaa_la_LIBADD  = ../drmaa2_utils/drmaa_utils/libdrmaa_utils.la @PBS_LIBS@
 libdrmaa_la_LDFLAGS = @PBS_LDFLAGS@ -version-info @PBS_DRMAA_VERSION_INFO@
 
 

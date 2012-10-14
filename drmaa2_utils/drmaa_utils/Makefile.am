@@ -32,7 +32,8 @@ COMMON_SOURCES = \
  logging.h logging.c \
  lookup3.c lookup.h \
  thread.h thread.c \
- xmalloc.h xmalloc.c
+ xmalloc.h xmalloc.c \
+ jsession.h fsd_jsession.c
 # job.h fsd_job.c \
 # session.h fsd_session.c \
 # drmaa_util.c drmaa_util.h

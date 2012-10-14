@@ -32,3 +32,12 @@ readme.toc
 readme.out
 readme.aux
 readme.log
+libtool.m4
+lt~obsolete.m4
+ltsugar.m4
+ltversion.m4
+ltoptions.m4
+.project
+.cproject
+drmaa_example1
+drmaa_example2

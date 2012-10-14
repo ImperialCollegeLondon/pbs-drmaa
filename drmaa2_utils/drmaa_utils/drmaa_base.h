@@ -25,54 +25,22 @@
 #endif
 
 #include <drmaa_utils/common.h>
-#include <drmaa_utils/thread.h>
+#include <drmaa_utils/drmaa2.h>
 
-#if 0
+
 struct fsd_drmaa_singletone_s {
-	/** Global session object */
-	fsd_drmaa_session_t *session;
-	fsd_mutex_t session_mutex;
 
-	fsd_drmaa_session_t *(*new_session)(
-			fsd_drmaa_singletone_t *self,
-			const char *contact
-			);
+	fsd_drmaa_jsession_t *(*new_jsession)(fsd_drmaa_singletone_t *self, const char *contact);
+	fsd_drmaa_rsession_t *(*new_rsession)(fsd_drmaa_singletone_t *self, const char *contact);
+	fsd_drmaa_msession_t *(*new_msession)(fsd_drmaa_singletone_t *self, const char *contact);
 
-	fsd_template_t *(*new_job_template)(
-			fsd_drmaa_singletone_t *self
-			);
-
-	const char* (*get_contact)( fsd_drmaa_singletone_t *self );
-	void (*get_version)(
-			fsd_drmaa_singletone_t *self,
-			unsigned *major, unsigned *minor
-			);
-	const char* (*get_DRM_system)( fsd_drmaa_singletone_t *self );
-	const char* (*get_DRMAA_implementation)( fsd_drmaa_singletone_t *self );
-
-	fsd_iter_t * (*
-	get_attribute_names)(
-		fsd_drmaa_singletone_t *self );
-
-	fsd_iter_t * (*
-	get_vector_attribute_names)(
-		fsd_drmaa_singletone_t *self );
-
-	int (*wifexited)( int *exited, int stat,
-		char *error_diagnosis, size_t error_diag_len );
-	int (*wexitstatus)( int *exit_status, int stat,
-		char *error_diagnosis, size_t error_diag_len );
-	int (*wifsignaled)( int *signaled, int stat,
-		char *error_diagnosis, size_t error_diag_len );
-	int (*wtermsig)( char *signal, size_t signal_len, int stat,
-		char *error_diagnosis, size_t error_diag_len );
-	int (*wcoredump)( int *core_dumped, int stat,
-		char *error_diagnosis, size_t error_diag_len );
-	int (*wifaborted)( int *aborted, int stat,
-		char *error_diagnosis, size_t error_diag_len );
+	drmaa2_string (*get_drms_name)(void);
+	drmaa2_version (*get_drms_version)(void);
+	drmaa2_string (*get_drmaa_name)(void);
+	drmaa2_version (*get_drmaa_version)(void);
+	drmaa2_bool (*drmaa2_supports)(const drmaa2_capability c);
 };
 
 extern fsd_drmaa_singletone_t _fsd_drmaa_singletone;
-#endif
 
 #endif /* __DRMAA_UTILS__DRMAA_BASE_H */

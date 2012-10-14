@@ -28,6 +28,8 @@
 #include <drmaa_utils/exception.h>
 #include <drmaa_utils/logging.h>
 #include <drmaa_utils/xmalloc.h>
+#include <drmaa_utils/drmaa2.h>
+
 
 #define FSD_SAFE_STR(str) ( str != NULL ? str : "(null)" )
 
@@ -44,7 +46,10 @@ typedef struct fsd_template_s   fsd_template_t;
 
 /* DRMAA structures */
 typedef struct fsd_drmaa_singletone_s  fsd_drmaa_singletone_t;
-typedef struct fsd_drmaa_session_s     fsd_drmaa_session_t;
+typedef struct fsd_drmaa_jsession_s     fsd_drmaa_jsession_t;
+typedef struct fsd_drmaa_rsession_s     fsd_drmaa_rsession_t;
+typedef struct fsd_drmaa_msession_s     fsd_drmaa_msession_t;
+
 typedef struct fsd_job_set_s           fsd_job_set_t;
 typedef struct fsd_job_s               fsd_job_t;
 typedef struct fsd_expand_drmaa_ph_s   fsd_expand_drmaa_ph_t;

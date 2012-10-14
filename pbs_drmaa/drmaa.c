@@ -1,7 +1,7 @@
 /* $Id$ */
 /*
- *  FedStage DRMAA for PBS Pro
- *  Copyright (C) 2006-2007  FedStage Systems
+ *  PSNC DRMAA 2.0 for Torque/PBS Pro
+ *  Copyright (C) 2012  Poznan Supercomputing and Networking Center
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,16 +21,11 @@
 #	include <config.h>
 #endif
 
-#include <signal.h>
 #include <drmaa_utils/drmaa_base.h>
-#include <drmaa_utils/session.h>
-#include <drmaa_utils/template.h>
-#include <drmaa_utils/drmaa_attrib.h>
-#include <drmaa_utils/iter.h>
-#include <drmaa_utils/logging.h>
-#include <pbs_drmaa/session.h>
 
 
+
+#if 0
 static fsd_drmaa_session_t *
 pbsdrmaa_new_session( fsd_drmaa_singletone_t *self, const char *contact )
 {
@@ -224,3 +219,4 @@ fsd_drmaa_singletone_t _fsd_drmaa_singletone = {
 	pbsdrmaa_wifaborted
 };
 
+#endif
