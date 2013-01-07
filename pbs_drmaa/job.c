@@ -318,7 +318,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 	struct attrl *attribs = status->attribs;
 	struct attrl *i = NULL;
 	char pbs_state = 0;
-	int exit_status = -2;
+	int exit_status = -101;
 	const char *cpu_usage = NULL;
 	const char *mem_usage = NULL;
 	const char *vmem_usage = NULL;
@@ -393,10 +393,17 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 	if( pbs_state )
 		fsd_log_debug(( "pbs_state: %c", pbs_state ));
 
-	if( exit_status != -2 )
+	if( exit_status != -101 )
 	 {
 		fsd_log_debug(( "exit_status: %d", exit_status ));
 		self->exit_status = exit_status;
+
+		if (self->exit_status < 0)
+		 {
+			self->exit_status = -1;
+			fsd_log_error(("ExitStatus = %d, probably system problem, report job %s to the local administrator", exit_status, self->job_id));
+		 }
+
 	 }
 	if(pbs_state){
 		switch( pbs_state )
@@ -404,7 +411,7 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 			case 'C': /* Job is completed after having run. */
 				self->flags &= FSD_JOB_TERMINATED_MASK;
 				self->flags |= FSD_JOB_TERMINATED;
-				if (exit_status != -2) { /* has exit code */
+				if (exit_status != -101) { /* has exit code */
 					if( self->exit_status == 0) 
 						self->state = DRMAA_PS_DONE;
 					else 

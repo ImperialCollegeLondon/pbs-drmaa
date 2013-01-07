@@ -53,6 +53,11 @@ static void pbsdrmaa_pbs_rlsjob( pbsdrmaa_pbs_conn_t *self, char *job_id );
 static void pbsdrmaa_pbs_holdjob( pbsdrmaa_pbs_conn_t *self,  char *job_id );
 
 static void pbsdrmaa_pbs_reconnect_internal( pbsdrmaa_pbs_conn_t *self, bool reconnect);
+
+static void pbsdrmaa_pbs_check_connect_internal( pbsdrmaa_pbs_conn_t *self, bool reconnect);
+
+#define IS_TRANSIENT_ERROR (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
+
 	
 pbsdrmaa_pbs_conn_t * 
 pbsdrmaa_pbs_conn_new( pbsdrmaa_session_t *session, char *server )
@@ -79,8 +84,8 @@ pbsdrmaa_pbs_conn_new( pbsdrmaa_session_t *session, char *server )
 
 		self->connection_fd = -1;
 		self->last_usage = time(NULL);
-	        
-		/*ignore SIGPIPE - otheriwse pbs_disconnect cause the program to exit */
+
+		/*ignore SIGPIPE - otherwise pbs_disconnect cause the program to exit */
 		signal(SIGPIPE, SIG_IGN);	
 
 		pbsdrmaa_pbs_reconnect_internal(self, false);
@@ -110,6 +115,7 @@ void
 pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self )
 {
 	fsd_log_enter((""));
+
 	TRY
 	{
 		if(self != NULL)
@@ -133,8 +139,54 @@ pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self )
 char* 
 pbsdrmaa_pbs_submit( pbsdrmaa_pbs_conn_t *self, struct attropl *attrib, char *script, char *destination )
 {
+	char *volatile job_id = NULL;
+	volatile bool first_try = true;
+	volatile bool conn_lock = false;
+
+	fsd_log_enter((""));
+
+	TRY
+	 {
+		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+
+		pbsdrmaa_pbs_reconnect_internal(self, false);
+
+retry:
+		job_id = pbs_submit(self->connection_fd, attrib, script, destination, NULL);
+
+		fsd_log_info(("pbs_submit(%s, %s) = %s", script, destination, job_id));
+
+		if(job_id == NULL)
+		 {
+			fsd_log_error(( "pbs_submit failed, pbs_errno = %d", pbs_errno ));
+			if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				pbsdrmaa_pbs_reconnect_internal(self, true);
+				first_try = false;
+				goto retry;
+			 }
+			else
+			 {
+				pbsdrmaa_exc_raise_pbs( "pbs_submit");
+			 }
+		 }
+	 }
+	EXCEPT_DEFAULT
+	 {
+		fsd_free(job_id);
+		fsd_exc_reraise();
+	 }
+	FINALLY
+	 {
+		if(conn_lock)
+			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+	 }
+	END_TRY
 
 
+	fsd_log_return(("%s", job_id));
+
+	return job_id;
 }
 
 struct batch_status* 
@@ -181,7 +233,6 @@ pbsdrmaa_pbs_reconnect_internal( pbsdrmaa_pbs_conn_t *self, bool force_reconnect
 {
 	int tries_left = self->session->max_retries_count;
 	int sleep_time = 1;
-
 
 	fsd_log_enter(("(%d)", self->connection_fd));
 
