@@ -192,40 +192,270 @@ retry:
 struct batch_status* 
 pbsdrmaa_pbs_statjob( pbsdrmaa_pbs_conn_t *self,  char *job_id, struct attrl *attrib )
 {
+	struct batch_status *volatile status = NULL;
+	volatile bool first_try = true;
+	volatile bool conn_lock = false;
 
+
+	fsd_log_enter((""));
+
+	TRY
+	 {
+		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+
+		pbsdrmaa_pbs_reconnect_internal(self, false);
+
+retry:
+		status = pbs_statjob(self->connection_fd, job_id, attrib, NULL);
+
+		fsd_log_info(( "pbs_statjob( fd=%d, job_id=%s, attribs={...} ) =%p", self->connection_fd, job_id, (void*)status));
+
+		if(status == NULL)
+		 {
+			fsd_log_error(( "pbs_statjob failed, pbs_errno = %d", pbs_errno ));
+			if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				pbsdrmaa_pbs_reconnect_internal(self, true);
+				first_try = false;
+				goto retry;
+			 }
+			else
+			 {
+				pbsdrmaa_exc_raise_pbs( "pbs_statjob");
+			 }
+		 }
+	 }
+	EXCEPT_DEFAULT
+	 {
+		if( status != NULL )
+			pbs_statfree( status );
+
+		fsd_exc_reraise();
+	 }
+	FINALLY
+	 {
+		if(conn_lock)
+			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+	 }
+	END_TRY
+
+
+	fsd_log_return((""));
+
+	return status;
 }
 
 void 
 pbsdrmaa_pbs_statjob_free( pbsdrmaa_pbs_conn_t *self, struct batch_status* job_status )
 {
+	fsd_log_enter((""));
 
-
+	pbs_statfree( job_status );
 }
 
 void 
-pbsdrmaa_pbs_sigjob( pbsdrmaa_pbs_conn_t *self, char *job_id, char *signal )
+pbsdrmaa_pbs_sigjob( pbsdrmaa_pbs_conn_t *self, char *job_id, char *signal_name )
 {
+	int rc = PBSE_NONE;
+	volatile bool first_try = true;
+	volatile bool conn_lock = false;
 
+
+	fsd_log_enter((""));
+
+	TRY
+	 {
+		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+
+		pbsdrmaa_pbs_reconnect_internal(self, false);
+
+retry:
+		rc = pbs_sigjob(self->connection_fd, job_id, signal_name, NULL);
+
+		fsd_log_info(( "pbs_sigjob( fd=%d, job_id=%s, signal_name=%s) = %d", self->connection_fd, job_id, signal_name, rc));
+
+		if(rc != PBSE_NONE)
+		 {
+			fsd_log_error(( "pbs_sigjob failed, pbs_errno = %d", pbs_errno ));
+			if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				pbsdrmaa_pbs_reconnect_internal(self, true);
+				first_try = false;
+				goto retry;
+			 }
+			else
+			 {
+				pbsdrmaa_exc_raise_pbs( "pbs_sigjob");
+			 }
+		 }
+	 }
+	EXCEPT_DEFAULT
+	 {
+		fsd_exc_reraise();
+	 }
+	FINALLY
+	 {
+		if(conn_lock)
+			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+	 }
+	END_TRY
+
+
+	fsd_log_return((""));
 
 }
 
 void 
 pbsdrmaa_pbs_deljob( pbsdrmaa_pbs_conn_t *self, char *job_id )
 {
+	int rc = PBSE_NONE;
+	volatile bool first_try = true;
+	volatile bool conn_lock = false;
 
+
+	fsd_log_enter((""));
+
+	TRY
+	 {
+		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+
+		pbsdrmaa_pbs_reconnect_internal(self, false);
+
+retry:
+		rc = pbs_deljob(self->connection_fd, job_id, NULL);
+
+		fsd_log_info(( "pbs_deljob( fd=%d, job_id=%s) = %d", self->connection_fd, job_id, rc));
+
+		if(rc != PBSE_NONE)
+		 {
+			fsd_log_error(( "pbs_deljob failed, rc = %d, pbs_errno = %d", rc, pbs_errno ));
+			if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				pbsdrmaa_pbs_reconnect_internal(self, true);
+				first_try = false;
+				goto retry;
+			 }
+			else
+			 {
+				pbsdrmaa_exc_raise_pbs( "pbs_deljob");
+			 }
+		 }
+	 }
+	EXCEPT_DEFAULT
+	 {
+		fsd_exc_reraise();
+	 }
+	FINALLY
+	 {
+		if(conn_lock)
+			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+	 }
+	END_TRY
+
+
+	fsd_log_return((""));
 }
 
 void 
 pbsdrmaa_pbs_rlsjob( pbsdrmaa_pbs_conn_t *self, char *job_id )
 {
+	int rc = PBSE_NONE;
+	volatile bool first_try = true;
+	volatile bool conn_lock = false;
 
 
+	fsd_log_enter((""));
+
+	TRY
+	 {
+		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+
+		pbsdrmaa_pbs_reconnect_internal(self, false);
+
+retry:
+		rc = pbs_rlsjob(self->connection_fd, job_id, USER_HOLD, NULL);
+
+		fsd_log_info(( "pbs_rlsjob( fd=%d, job_id=%s) = %d", self->connection_fd, job_id, rc));
+
+		if(rc != PBSE_NONE)
+		 {
+			fsd_log_error(( "pbs_rlsjob failed, rc = %d, pbs_errno = %d", rc,  pbs_errno ));
+			if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				pbsdrmaa_pbs_reconnect_internal(self, true);
+				first_try = false;
+				goto retry;
+			 }
+			else
+			 {
+				pbsdrmaa_exc_raise_pbs( "pbs_rlsjob");
+			 }
+		 }
+	 }
+	EXCEPT_DEFAULT
+	 {
+		fsd_exc_reraise();
+	 }
+	FINALLY
+	 {
+		if(conn_lock)
+			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+	 }
+	END_TRY
+
+
+	fsd_log_return((""));
 }
 
 void 
 pbsdrmaa_pbs_holdjob( pbsdrmaa_pbs_conn_t *self,  char *job_id )
 {
+	int rc = PBSE_NONE;
+	volatile bool first_try = true;
+	volatile bool conn_lock = false;
 
+
+	fsd_log_enter((""));
+
+	TRY
+	 {
+		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+
+		pbsdrmaa_pbs_reconnect_internal(self, false);
+
+retry:
+		rc = pbs_holdjob(self->connection_fd, job_id, USER_HOLD, NULL);
+
+		fsd_log_info(( "pbs_holdjob( fd=%d, job_id=%s) = %d", self->connection_fd, job_id, rc));
+
+		if(rc != PBSE_NONE)
+		 {
+			fsd_log_error(( "pbs_holdjob failed, rc = %d, pbs_errno = %d", rc, pbs_errno ));
+			if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				pbsdrmaa_pbs_reconnect_internal(self, true);
+				first_try = false;
+				goto retry;
+			 }
+			else
+			 {
+				pbsdrmaa_exc_raise_pbs( "pbs_holdjob");
+			 }
+		 }
+	 }
+	EXCEPT_DEFAULT
+	 {
+		fsd_exc_reraise();
+	 }
+	FINALLY
+	 {
+		if(conn_lock)
+			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+	 }
+	END_TRY
+
+
+	fsd_log_return((""));
 }
 
 void 
