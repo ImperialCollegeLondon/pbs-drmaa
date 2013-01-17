@@ -113,11 +113,12 @@ pbsdrmaa_add_attr( struct attrl *head, const char *name, const char *value)
 
 
 void
-pbsdrmaa_exc_raise_pbs( const char *function )
+pbsdrmaa_exc_raise_pbs( const char *function, int connection )
 {
 	int _pbs_errno;
 	int fsd_errno;
 	const char *message = NULL;
+	const char *extended_message = NULL;
 
 	_pbs_errno = pbs_errno;
 
@@ -127,16 +128,24 @@ pbsdrmaa_exc_raise_pbs( const char *function )
 	message = "PBS error";
 #endif
 
-	fsd_errno = pbsdrmaa_map_pbs_errno( _pbs_errno );
-	fsd_log_error((
-				"call to %s returned with error %d:%s mapped to %d:%s",
-				function,
-				_pbs_errno, message,
-				fsd_errno, fsd_strerror(fsd_errno)
-				));
-	fsd_exc_raise_fmt( fsd_errno, " %s", function, message );
-}
+	if ( connection != -1 )
+	 {
+		extended_message = pbs_geterrmsg(connection);
+	 }
 
+	fsd_errno = pbsdrmaa_map_pbs_errno( _pbs_errno );
+
+	fsd_log_error(( "call to %s returned with error %d:%s(%s) mapped to %d:%s",
+					function,
+					_pbs_errno, message, extended_message,
+					fsd_errno, fsd_strerror(fsd_errno)
+			));
+
+	if (extended_message)
+		fsd_exc_raise_fmt(fsd_errno, "%s: %s ", message, extended_message);
+	else
+		fsd_exc_raise_fmt(fsd_errno, "%s", message);
+}
 
 /** Maps PBS error code into DMRAA code. */
 int
