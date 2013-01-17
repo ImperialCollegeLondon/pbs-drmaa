@@ -28,20 +28,22 @@
 
 #include <drmaa_utils/job.h>
 #include <drmaa_utils/session.h>
+#include <drmaa_utils/thread.h>
 
-#include <session.h>
 
 #include <pbs_ifl.h>
 
 typedef struct pbsdrmaa_pbs_conn_s pbsdrmaa_pbs_conn_t;
 
-pbsdrmaa_pbs_conn_t * pbsdrmaa_pbs_conn_new ( pbsdrmaa_session_t * session, char *server);
+pbsdrmaa_pbs_conn_t *
+pbsdrmaa_pbs_conn_new(
+		fsd_drmaa_session_t * session,
+		const char *server);
 
-void
-pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self );
+void pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self );
 
 struct pbsdrmaa_pbs_conn_s {
-	pbsdrmaa_session_t *volatile session;
+	fsd_drmaa_session_t *volatile session;
 
 	char* (*submit) ( pbsdrmaa_pbs_conn_t *self, struct attropl *attrib, char *script, char *destination );
 
@@ -62,8 +64,12 @@ struct pbsdrmaa_pbs_conn_s {
 	/* connection descriptor */
 	int connection_fd;
 	
-	/* timestamp of last usage */
-	time_t last_usage;	
+	/* timestamp of last connect time */
+	time_t last_connect_time;
+
+	fsd_cond_t autoclose_cond;
+	fsd_mutex_t autoclose_mutex;
+	bool close_connection;
 };
 
 #endif /* __PBS_DRMAA__PBS_CONN_H */

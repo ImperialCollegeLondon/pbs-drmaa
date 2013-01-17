@@ -29,7 +29,7 @@
 #define PBSOLDE_EXPIRED 15020
 
 
-void pbsdrmaa_exc_raise_pbs( const char *function );
+void pbsdrmaa_exc_raise_pbs( const char *function, int connection_fd );
 int pbsdrmaa_map_pbs_errno( int _pbs_errno );
 
 struct attrl;

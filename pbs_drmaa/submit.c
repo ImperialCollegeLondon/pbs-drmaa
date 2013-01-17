@@ -135,15 +135,12 @@ pbsdrmaa_submit_destroy( pbsdrmaa_submit_t *self )
 char *
 pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 {
-	volatile bool conn_lock = false;
 	struct attrl *volatile pbs_attr = NULL;
 	char *volatile job_id = NULL;
 	TRY
 	 {
 		fsd_template_t *pbs_tmpl = self->pbs_job_attributes;
 		int i;
-		int tries_left = ((pbsdrmaa_session_t *)self->session)->max_retries_count;
-		int sleep_time = 1;
 
 		for( i = PBSDRMAA_N_PBS_ATTRIBUTES - 1; i >= 0; i-- ) /* down loop -> start with custom resources */
 		 {
@@ -207,49 +204,10 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 
 		pbs_attr = pbsdrmaa_submit_filter(pbs_attr);
 
-		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
-retry:
-		job_id = pbs_submit( ((pbsdrmaa_session_t*)self->session)->pbs_conn,
-				(struct attropl*)pbs_attr, self->script_filename,
-				self->destination_queue, NULL );
+		job_id = ((pbsdrmaa_session_t *)self->session)->pbs_connection->submit( ((pbsdrmaa_session_t *)self->session)->pbs_connection, (struct attropl*)pbs_attr, self->script_filename, self->destination_queue);
 
 		fsd_log_info(("pbs_submit(%s, %s) =%s", self->script_filename, self->destination_queue, job_id));
 
-		if( job_id == NULL )
-		{
-			fsd_log_error(( "pbs_submit failed, pbs_errno = %d", pbs_errno ));
-			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
-			 {
-				pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self->session;
-
-				fsd_log_error(( "Protocol error. Retrying..." ));
-
-				if (pbsself->pbs_conn >= 0 )
-					pbs_disconnect( pbsself->pbs_conn );
-retry_connect:
-				sleep(sleep_time++);
-				pbsself->pbs_conn = pbs_connect( pbsself->super.contact );
-				if( pbsself->pbs_conn < 0) 
-				 {
-					if (tries_left--)
-						goto retry_connect;
-					else
-						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-				 }
-				else
-				 {
-					if (tries_left--)
-						goto retry;
-					else
-						pbsdrmaa_exc_raise_pbs( "pbs_submit" );
-				 }
-			 }
-			else
-			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_submit" );
-			 }
-		}
-		conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
 	 }
 	EXCEPT_DEFAULT
 	 {
@@ -258,8 +216,6 @@ retry_connect:
 	 }
 	FINALLY
 	 {
-		if( conn_lock )
-			conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
 		if( pbs_attr )
 			pbsdrmaa_free_attrl( pbs_attr );
 	 }
@@ -893,7 +849,7 @@ pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 
 			if (!attr_value)
 			  {
-				fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_FORMAT, "Invalid output line of submit filter:", output_line);
+				fsd_exc_raise_fmt(FSD_DRMAA_ERRNO_INVALID_ATTRIBUTE_FORMAT, "Invalid output line of submit filter: %s", output_line);
 			  }
 			else
 			  {

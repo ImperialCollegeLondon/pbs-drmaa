@@ -76,117 +76,45 @@ pbsdrmaa_job_new( char *job_id )
 static void
 pbsdrmaa_job_control( fsd_job_t *self, int action )
 {
-	volatile bool conn_lock = false;
 	pbsdrmaa_session_t *session = (pbsdrmaa_session_t*)self->session;
 	const char *job_id = self->job_id;
-	const char *apicall = NULL;
-	int rc = PBSE_NONE;
 
-	fsd_log_enter(( "({job_id=%s}, action=%d)",
-			self->job_id, action ));
+	fsd_log_enter(( "({job_id=%s}, action=%d)", self->job_id, action ));
 
-	TRY
+	while ( true )
 	 {
-		int tries_left = session->max_retries_count;
-		int sleep_time = 1;
-
-		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
-
-		/*TODO reconnect */
-		while ( true )
+		switch( action )
 		 {
-			switch( action )
-			 {
-				/*
-				 * We cannot know whether we did suspend job
-				 * in other way than remembering this inside DRMAA session.
-				 */
-				case DRMAA_CONTROL_SUSPEND:
-					apicall = "pbs_sigjob";
-					rc = pbs_sigjob( session->pbs_conn, (char*)job_id,
-							"SIGSTOP", NULL );
-					fsd_log_info(("pbs_sigjob(%s, SIGSTOP) =%d", job_id, rc));
-					if( rc == PBSE_NONE )
-						self->flags |= FSD_JOB_SUSPENDED;
-					break;
-				case DRMAA_CONTROL_RESUME:
-					apicall = "pbs_sigjob";
-					rc = pbs_sigjob( session->pbs_conn, (char*)job_id,
-							"SIGCONT", NULL );
-					fsd_log_info(("pbs_sigjob(%s, SIGCONT) =%d", job_id, rc));
-					if( rc == PBSE_NONE )
-						self->flags &= ~FSD_JOB_SUSPENDED;
-					break;
-				case DRMAA_CONTROL_HOLD:
-					apicall = "pbs_holdjob";
-					rc = pbs_holdjob( session->pbs_conn, (char*)job_id,
-							USER_HOLD, NULL );
-					fsd_log_info(("pbs_sigjob(%s, SIGHOLD) =%d", job_id, rc));
-					if( rc == PBSE_NONE )
-						self->flags |= FSD_JOB_HOLD;
-					break;
-				case DRMAA_CONTROL_RELEASE:
-					apicall = "pbs_rlsjob";
-					rc = pbs_rlsjob( session->pbs_conn, (char*)job_id,
-							USER_HOLD, NULL );
-					fsd_log_info(("pbs_rlsjob(%s) =%d", job_id, rc));
-					if( rc == PBSE_NONE )
-						self->flags &= FSD_JOB_HOLD;
-					break;
-				case DRMAA_CONTROL_TERMINATE:
-					apicall = "pbs_deljob";
-					rc = pbs_deljob( session->pbs_conn, (char*)job_id, NULL );
-					fsd_log_info(("pbs_deljob(%s) =%d", job_id, rc));
-					/* Torque:
-					 * deldelay=N -- delay between SIGTERM and SIGKILL (default 0) */
-					if( rc == PBSE_NONE )
-					 {
-						self->flags &= FSD_JOB_TERMINATED_MASK;
-						if( (self->flags & FSD_JOB_TERMINATED) == 0 )
-							self->flags |= FSD_JOB_TERMINATED | FSD_JOB_ABORTED;
-					 }
-					break;
-			 }
-
-retry_connect:
-			if ( rc == PBSE_NONE )
+			/*
+			 * We cannot know whether we did suspend job
+			 * in other way than remembering this inside DRMAA session.
+			 */
+			case DRMAA_CONTROL_SUSPEND:
+				session->pbs_connection->sigjob( session->pbs_connection, (char*)job_id, "SIGSTOP");
+				self->flags |= FSD_JOB_SUSPENDED;
 				break;
-			else if (( rc == PBSE_INTERNAL || rc == PBSE_PROTOCOL || rc == PBSOLDE_PROTOCOL || rc == PBSE_EXPIRED || rc == PBSOLDE_EXPIRED) && (tries_left--))
-			 {
-				if (rc == PBSE_PROTOCOL || rc == PBSE_EXPIRED || rc == PBSOLDE_PROTOCOL || rc == PBSOLDE_EXPIRED)
-				 {
-					if ( session->pbs_conn >= 0)
-						pbs_disconnect( session->pbs_conn );
-
-					sleep( sleep_time++ );
-
-					session->pbs_conn = pbs_connect( session->super.contact );
-
-					if (session->pbs_conn < 0)
-						goto retry_connect;
-
-					fsd_log_info(( "pbs_connect(%s) =%d", session->super.contact, session->pbs_conn ));
-				 }
-				else /* PBSE_INTERNAL */
-				 {
-					/*
-					 * In PBS Pro pbs_sigjob raises internal server error (PBSE_INTERNAL)
-					 * when job just changed its state to running.
-					 */
-					sleep( sleep_time++ );
-				 }
-				fsd_log_debug(( "repeating request (%d of %d)", tries_left, session->max_retries_count));
-			 }
-			else
-				pbsdrmaa_exc_raise_pbs( apicall );
-		 } /* end while */
+			case DRMAA_CONTROL_RESUME:
+				session->pbs_connection->sigjob( session->pbs_connection, (char*)job_id, "SIGCONT");
+				self->flags &= ~FSD_JOB_SUSPENDED;
+				break;
+			case DRMAA_CONTROL_HOLD:
+				session->pbs_connection->holdjob( session->pbs_connection, (char*)job_id );
+				self->flags |= FSD_JOB_HOLD;
+				break;
+			case DRMAA_CONTROL_RELEASE:
+				session->pbs_connection->rlsjob( session->pbs_connection, (char*)job_id );
+				self->flags &= ~FSD_JOB_HOLD;
+				break;
+			case DRMAA_CONTROL_TERMINATE:
+				session->pbs_connection->deljob( session->pbs_connection, (char*)job_id );
+				/* TODO: make deldelay configurable ???:
+				 * deldelay=N -- delay between SIGTERM and SIGKILL (default 0) */
+				self->flags &= FSD_JOB_TERMINATED_MASK;
+				if( (self->flags & FSD_JOB_TERMINATED) == 0 )
+					self->flags |= FSD_JOB_TERMINATED | FSD_JOB_ABORTED;
+				break;
+		 }
 	 }
-	FINALLY
-	 {
-		if( conn_lock )
-			conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
-	 }
-	END_TRY
 
 	fsd_log_return((""));
 }
@@ -195,100 +123,19 @@ retry_connect:
 void
 pbsdrmaa_job_update_status( fsd_job_t *self )
 {
-	volatile bool conn_lock = false;
 	struct batch_status *volatile status = NULL;
 	pbsdrmaa_session_t *session = (pbsdrmaa_session_t*)self->session;
-	int tries_left = session->max_retries_count;
-	int sleep_time = 1;
 
 	fsd_log_enter(( "({job_id=%s})", self->job_id ));
 	
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock( &self->session->drm_connection_mutex );
-retry:
-		if (session->pbs_conn < 0) {
-			fsd_log_info(("No connection with pbs. Reconnecting"));
-			goto retry_connect;
-		}
-
 
 #ifdef PBS_PROFESSIONAL
-		status = pbs_statjob( session->pbs_conn, self->job_id, NULL, NULL );
+		status = session->pbs_connection->statjob( session->pbs_connection, self->job_id, NULL);
 #else
-		status = pbs_statjob( session->pbs_conn, self->job_id, session->status_attrl, NULL );
+		status = session->pbs_connection->statjob( session->pbs_connection, self->job_id, session->status_attrl);
 #endif
-		fsd_log_info(( "pbs_statjob(fd=%d, job_id=%s, attribs={...}) =%p",
-				 session->pbs_conn, self->job_id, (void*)status ));
-		if( status == NULL )
-		 {
-
-#ifndef PBS_PROFESSIONAL
-			if ( pbs_errno != PBSE_UNKJOBID )
-				fsd_log_error(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
-			else
-				fsd_log_debug(("pbs_statjob error: %d, %s, %s", pbs_errno, pbse_to_txt(pbs_errno), pbs_strerror(pbs_errno)));
-#else
-#  ifndef PBS_PROFESSIONAL_NO_LOG
-			if ( pbs_errno != PBSE_UNKJOBID && pbs_errno != PBSE_HISTJOBID )
-				fsd_log_error(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
-			else
-				fsd_log_debug(("pbs_statjob error: %d, %s", pbs_errno, pbse_to_txt(pbs_errno)));
-#  else
-			if ( pbs_errno != PBSE_UNKJOBID && pbs_errno != PBSE_HISTJOBID )
-				fsd_log_error(("pbs_statjob error: %d", pbs_errno));
-			else
-				fsd_log_debug(("pbs_statjob error: %d", pbs_errno));
-#  endif
-#endif
-
-			switch( pbs_errno )
-			 {
-				case PBSE_UNKJOBID:
-#ifdef PBS_PROFESSIONAL
-				case PBSE_HISTJOBID:
-#endif
-					break;
-				case PBSE_PROTOCOL:
-#if PBSOLDE_PROTOCOL != PBSE_PROTOCOL
-				case PBSOLDE_PROTOCOL:
-#endif
-				case PBSE_EXPIRED:
-#if PBSOLDE_EXPIRED != PBSE_EXPIRED
-				case PBSOLDE_EXPIRED:
-#endif
-					if ( session->pbs_conn >= 0 )
-						pbs_disconnect( session->pbs_conn );
-					fsd_log_info(("Protocol error. Reconnecting..."));
-retry_connect:
-					sleep(sleep_time++);
-					session->pbs_conn = pbs_connect( session->super.contact );
-					if( session->pbs_conn < 0 )
-					 {
-						if (tries_left--) {
-							fsd_log_info(("Retrying... (%d tries left)", tries_left));
-							goto retry_connect;
-						} else {
-							fsd_log_error(("No more tries left... Throwing exception"));
-							pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-						}
-					 }
-					else
-					 {
-						goto retry;
-					 }
-				default:
-					pbsdrmaa_exc_raise_pbs( "pbs_statjob" );
-					break;
-				case 0:  /* ? */
-					fsd_exc_raise_code( FSD_ERRNO_INTERNAL_ERROR );
-					break;
-			 }
-
-		 }
-
-		conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
-
 
 		if( status != NULL )
 		 {
@@ -301,10 +148,8 @@ retry_connect:
 	 }
 	FINALLY
 	 {
-		if( conn_lock )
-			conn_lock = fsd_mutex_unlock( &self->session->drm_connection_mutex );
 		if( status != NULL )
-			pbs_statfree( status );
+			session->pbs_connection->statjob_free( session->pbs_connection, status );
 	 }
 	END_TRY
 

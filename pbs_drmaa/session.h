@@ -26,10 +26,11 @@
 
 #include <drmaa_utils/session.h>
 
+#include <pbs_drmaa/pbs_conn.h>
+
 typedef struct pbsdrmaa_session_s pbsdrmaa_session_t;
 
-fsd_drmaa_session_t *
-pbsdrmaa_session_new( const char *contact );
+fsd_drmaa_session_t *pbsdrmaa_session_new( const char *contact );
 
 struct pbsdrmaa_session_s {
 	fsd_drmaa_session_t super;
@@ -44,10 +45,9 @@ struct pbsdrmaa_session_s {
 	void* (*super_wait_thread)( fsd_drmaa_session_t *self );
 
 	/*
-	 * PBS connection (or -1 if not connected).
-	 * A descriptor of socket conencted to PBS server.
+	 * PBS connection handle
 	 */
-	int pbs_conn;
+	pbsdrmaa_pbs_conn_t *pbs_connection;
 
 	/*
 	 * PBS folder - used by wait_thread which reads log files
@@ -90,9 +90,9 @@ struct pbsdrmaa_session_s {
 	char *job_exit_status_file_prefix;
 
 	/*
-	 * Whether to cache PBS Connection
+	 * PBS Max connection time
 	 */
-	bool cache_connection;
+	int connection_max_lifetime;
 };
 
 #endif /* __PBS_DRMAA__SESSION_H */

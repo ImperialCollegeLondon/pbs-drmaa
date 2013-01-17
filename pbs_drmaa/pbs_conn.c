@@ -27,9 +27,9 @@
 #include <drmaa_utils/drmaa.h>
 #include <drmaa_utils/iter.h>
 #include <drmaa_utils/conf.h>
-#include <drmaa_utils/session.h>
 #include <drmaa_utils/datetime.h>
 
+#include <pbs_drmaa/session.h>
 #include <pbs_drmaa/pbs_conn.h>
 #include <pbs_drmaa/util.h>
 
@@ -52,15 +52,25 @@ static void pbsdrmaa_pbs_rlsjob( pbsdrmaa_pbs_conn_t *self, char *job_id );
 
 static void pbsdrmaa_pbs_holdjob( pbsdrmaa_pbs_conn_t *self,  char *job_id );
 
-static void pbsdrmaa_pbs_reconnect_internal( pbsdrmaa_pbs_conn_t *self, bool reconnect);
+static void pbsdrmaa_pbs_connection_autoclose_thread_loop( pbsdrmaa_pbs_conn_t *self, bool reconnect);
 
-static void pbsdrmaa_pbs_check_connect_internal( pbsdrmaa_pbs_conn_t *self, bool reconnect);
 
+static void check_reconnect( pbsdrmaa_pbs_conn_t *self, bool reconnect);
+
+static void start_autoclose_thread( pbsdrmaa_pbs_conn_t *self );
+
+static void stop_autoclose_thread( pbsdrmaa_pbs_conn_t *self );
+
+
+#if defined PBS_PROFESSIONAL && defined PBSE_HISTJOBID
+	#define IS_MISSING_JOB (pbs_errno == PBSE_UNKJOBID || pbs_errno == PBSE_HISTJOBID)
+#else
+	#define IS_MISSING_JOB (pbs_errno == PBSE_UNKJOBID)
+#endif
 #define IS_TRANSIENT_ERROR (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
 
-	
 pbsdrmaa_pbs_conn_t * 
-pbsdrmaa_pbs_conn_new( pbsdrmaa_session_t *session, char *server )
+pbsdrmaa_pbs_conn_new( fsd_drmaa_session_t *session, const char *server )
 {
 	pbsdrmaa_pbs_conn_t *volatile self = NULL;
 
@@ -83,12 +93,11 @@ pbsdrmaa_pbs_conn_new( pbsdrmaa_session_t *session, char *server )
 		self->server = fsd_strdup(server);
 
 		self->connection_fd = -1;
-		self->last_usage = time(NULL);
 
 		/*ignore SIGPIPE - otherwise pbs_disconnect cause the program to exit */
 		signal(SIGPIPE, SIG_IGN);	
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 	  }
 	EXCEPT_DEFAULT
 	  {
@@ -99,6 +108,7 @@ pbsdrmaa_pbs_conn_new( pbsdrmaa_session_t *session, char *server )
 
 			if (self->connection_fd != -1)
 				pbs_disconnect(self->connection_fd);
+			stop_autoclose_thread(self);
 		  }
 			
 		fsd_exc_reraise();
@@ -109,7 +119,6 @@ pbsdrmaa_pbs_conn_new( pbsdrmaa_session_t *session, char *server )
 
 	return self;
 }
-
 
 void
 pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self )
@@ -147,9 +156,9 @@ pbsdrmaa_pbs_submit( pbsdrmaa_pbs_conn_t *self, struct attropl *attrib, char *sc
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+		conn_lock = fsd_mutex_lock(&self->session->drm_connection_mutex);
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 
 retry:
 		job_id = pbs_submit(self->connection_fd, attrib, script, destination, NULL);
@@ -161,13 +170,13 @@ retry:
 			fsd_log_error(( "pbs_submit failed, pbs_errno = %d", pbs_errno ));
 			if (IS_TRANSIENT_ERROR && first_try)
 			 {
-				pbsdrmaa_pbs_reconnect_internal(self, true);
+				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
 			 }
 			else
 			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_submit");
+				pbsdrmaa_exc_raise_pbs( "pbs_submit", self->connection_fd);
 			 }
 		 }
 	 }
@@ -179,7 +188,7 @@ retry:
 	FINALLY
 	 {
 		if(conn_lock)
-			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+			conn_lock = fsd_mutex_unlock(&self->session->drm_connection_mutex);
 	 }
 	END_TRY
 
@@ -201,9 +210,9 @@ pbsdrmaa_pbs_statjob( pbsdrmaa_pbs_conn_t *self,  char *job_id, struct attrl *at
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+		conn_lock = fsd_mutex_lock(&self->session->drm_connection_mutex);
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 
 retry:
 		status = pbs_statjob(self->connection_fd, job_id, attrib, NULL);
@@ -212,16 +221,20 @@ retry:
 
 		if(status == NULL)
 		 {
-			fsd_log_error(( "pbs_statjob failed, pbs_errno = %d", pbs_errno ));
-			if (IS_TRANSIENT_ERROR && first_try)
+			if (IS_MISSING_JOB)
 			 {
-				pbsdrmaa_pbs_reconnect_internal(self, true);
+				fsd_log_info(( "missing job = %s (code=%d)", job_id, pbs_errno ));
+			 }
+			else if (IS_TRANSIENT_ERROR && first_try)
+			 {
+				fsd_log_error(( "pbs_statjob failed, pbs_errno = %d", pbs_errno ));
+				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
 			 }
 			else
 			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_statjob");
+				pbsdrmaa_exc_raise_pbs( "pbs_statjob", self->connection_fd);
 			 }
 		 }
 	 }
@@ -235,7 +248,7 @@ retry:
 	FINALLY
 	 {
 		if(conn_lock)
-			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+			conn_lock = fsd_mutex_unlock(&self->session->drm_connection_mutex);
 	 }
 	END_TRY
 
@@ -265,9 +278,9 @@ pbsdrmaa_pbs_sigjob( pbsdrmaa_pbs_conn_t *self, char *job_id, char *signal_name 
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+		conn_lock = fsd_mutex_lock(&self->session->drm_connection_mutex);
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 
 retry:
 		rc = pbs_sigjob(self->connection_fd, job_id, signal_name, NULL);
@@ -279,13 +292,13 @@ retry:
 			fsd_log_error(( "pbs_sigjob failed, pbs_errno = %d", pbs_errno ));
 			if (IS_TRANSIENT_ERROR && first_try)
 			 {
-				pbsdrmaa_pbs_reconnect_internal(self, true);
+				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
 			 }
 			else
 			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_sigjob");
+				pbsdrmaa_exc_raise_pbs( "pbs_sigjob", self->connection_fd);
 			 }
 		 }
 	 }
@@ -296,7 +309,7 @@ retry:
 	FINALLY
 	 {
 		if(conn_lock)
-			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+			conn_lock = fsd_mutex_unlock(&self->session->drm_connection_mutex);
 	 }
 	END_TRY
 
@@ -317,9 +330,9 @@ pbsdrmaa_pbs_deljob( pbsdrmaa_pbs_conn_t *self, char *job_id )
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+		conn_lock = fsd_mutex_lock(&self->session->drm_connection_mutex);
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 
 retry:
 		rc = pbs_deljob(self->connection_fd, job_id, NULL);
@@ -331,13 +344,13 @@ retry:
 			fsd_log_error(( "pbs_deljob failed, rc = %d, pbs_errno = %d", rc, pbs_errno ));
 			if (IS_TRANSIENT_ERROR && first_try)
 			 {
-				pbsdrmaa_pbs_reconnect_internal(self, true);
+				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
 			 }
 			else
 			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_deljob");
+				pbsdrmaa_exc_raise_pbs( "pbs_deljob", self->connection_fd);
 			 }
 		 }
 	 }
@@ -348,7 +361,7 @@ retry:
 	FINALLY
 	 {
 		if(conn_lock)
-			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+			conn_lock = fsd_mutex_unlock(&self->session->drm_connection_mutex);
 	 }
 	END_TRY
 
@@ -368,9 +381,9 @@ pbsdrmaa_pbs_rlsjob( pbsdrmaa_pbs_conn_t *self, char *job_id )
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+		conn_lock = fsd_mutex_lock(&self->session->drm_connection_mutex);
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 
 retry:
 		rc = pbs_rlsjob(self->connection_fd, job_id, USER_HOLD, NULL);
@@ -382,13 +395,13 @@ retry:
 			fsd_log_error(( "pbs_rlsjob failed, rc = %d, pbs_errno = %d", rc,  pbs_errno ));
 			if (IS_TRANSIENT_ERROR && first_try)
 			 {
-				pbsdrmaa_pbs_reconnect_internal(self, true);
+				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
 			 }
 			else
 			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_rlsjob");
+				pbsdrmaa_exc_raise_pbs( "pbs_rlsjob", self->connection_fd);
 			 }
 		 }
 	 }
@@ -399,7 +412,7 @@ retry:
 	FINALLY
 	 {
 		if(conn_lock)
-			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+			conn_lock = fsd_mutex_unlock(&self->session->drm_connection_mutex);
 	 }
 	END_TRY
 
@@ -419,9 +432,9 @@ pbsdrmaa_pbs_holdjob( pbsdrmaa_pbs_conn_t *self,  char *job_id )
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock(&self->session->super.drm_connection_mutex);
+		conn_lock = fsd_mutex_lock(&self->session->drm_connection_mutex);
 
-		pbsdrmaa_pbs_reconnect_internal(self, false);
+		check_reconnect(self, false);
 
 retry:
 		rc = pbs_holdjob(self->connection_fd, job_id, USER_HOLD, NULL);
@@ -433,13 +446,13 @@ retry:
 			fsd_log_error(( "pbs_holdjob failed, rc = %d, pbs_errno = %d", rc, pbs_errno ));
 			if (IS_TRANSIENT_ERROR && first_try)
 			 {
-				pbsdrmaa_pbs_reconnect_internal(self, true);
+				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
 			 }
 			else
 			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_holdjob");
+				pbsdrmaa_exc_raise_pbs( "pbs_holdjob", self->connection_fd);
 			 }
 		 }
 	 }
@@ -450,7 +463,7 @@ retry:
 	FINALLY
 	 {
 		if(conn_lock)
-			conn_lock = fsd_mutex_unlock(&self->session->super.drm_connection_mutex);
+			conn_lock = fsd_mutex_unlock(&self->session->drm_connection_mutex);
 	 }
 	END_TRY
 
@@ -459,9 +472,9 @@ retry:
 }
 
 void 
-pbsdrmaa_pbs_reconnect_internal( pbsdrmaa_pbs_conn_t *self, bool force_reconnect)
+check_reconnect( pbsdrmaa_pbs_conn_t *self, bool force_reconnect)
 {
-	int tries_left = self->session->max_retries_count;
+	int tries_left = ((pbsdrmaa_session_t *)self->session)->max_retries_count;
 	int sleep_time = 1;
 
 	fsd_log_enter(("(%d)", self->connection_fd));
@@ -475,10 +488,13 @@ pbsdrmaa_pbs_reconnect_internal( pbsdrmaa_pbs_conn_t *self, bool force_reconnect
 		  }
 		else
 		 {
+			stop_autoclose_thread(self);
 			pbs_disconnect(self->connection_fd);
 			self->connection_fd = -1;
 		 }
 	  }
+
+
 
 retry_connect: /* Life... */
 	self->connection_fd = pbs_connect( self->server );
@@ -491,8 +507,21 @@ retry_connect: /* Life... */
 	  }
 	
 	if( self->connection_fd < 0 )
-		pbsdrmaa_exc_raise_pbs( "pbs_connect" );
+		pbsdrmaa_exc_raise_pbs( "pbs_connect", self->connection_fd );
 	
 	fsd_log_return(("(%d)", self->connection_fd));
+}
+
+
+static void start_autoclose_thread( pbsdrmaa_pbs_conn_t *self )
+{
+
+
+}
+
+static void stop_autoclose_thread( pbsdrmaa_pbs_conn_t *self )
+{
+
+
 }
 

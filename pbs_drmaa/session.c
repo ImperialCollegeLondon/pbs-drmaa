@@ -97,7 +97,6 @@ pbsdrmaa_session_new( const char *contact )
 		self->super_wait_thread = NULL;
 
 		self->log_file_initial_size = 0;
-		self->pbs_conn = -1;
 		self->pbs_home = NULL;
 
 		self->wait_thread_log = false;
@@ -122,23 +121,8 @@ pbsdrmaa_session_new( const char *contact )
 
 		self->super.missing_jobs = FSD_IGNORE_MISSING_JOBS;
 
-		 {
-			int tries_left = self->max_retries_count;
-			int sleep_time = 1;
-			/*ignore SIGPIPE - otheriwse pbs_disconnect cause the program to exit */
-			signal(SIGPIPE, SIG_IGN);
-retry_connect: /* Life... */
-			self->pbs_conn = pbs_connect( self->super.contact );
-			fsd_log_info(( "pbs_connect(%s) =%d", self->super.contact, self->pbs_conn ));
-			if( self->pbs_conn < 0 && tries_left-- )
-			 {
-				sleep(sleep_time++);
-				goto retry_connect;
-			 }
-
-			if( self->pbs_conn < 0 )
-				pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-		 }
+		self->pbs_connection = pbsdrmaa_pbs_conn_new( (fsd_drmaa_session_t *)self, contact );
+		self->connection_max_lifetime =  30; /* 30 seconds */
 
 	 }
 	EXCEPT_DEFAULT
@@ -161,8 +145,7 @@ pbsdrmaa_session_destroy( fsd_drmaa_session_t *self )
 {
 	pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self;
 	self->stop_wait_thread( self );
-	if( pbsself->pbs_conn >= 0 )
-		pbs_disconnect( pbsself->pbs_conn );
+	pbsdrmaa_pbs_conn_destroy(pbsself->pbs_connection);
 	fsd_free( pbsself->status_attrl );
 	fsd_free( pbsself->job_exit_status_file_prefix );
 
@@ -228,11 +211,14 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 	fsd_conf_option_t *wait_thread_sleep_time = NULL;
 	fsd_conf_option_t *max_retries_count = NULL;
 	fsd_conf_option_t *user_state_dir = NULL;
+	fsd_conf_option_t *connection_max_lifetime = NULL;
+
 
 	pbs_home = fsd_conf_dict_get(self->configuration, "pbs_home" );
 	wait_thread_sleep_time = fsd_conf_dict_get(self->configuration, "wait_thread_sleep_time" );
 	max_retries_count = fsd_conf_dict_get(self->configuration, "max_retries_count" );
 	user_state_dir = fsd_conf_dict_get(self->configuration, "user_state_dir" );
+	connection_max_lifetime = fsd_conf_dict_get(self->configuration, "connection_max_lifetime");
 
 	if( pbs_home && pbs_home->type == FSD_CONF_STRING )
 	  {
@@ -271,6 +257,12 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 	  {
 		pbsself->max_retries_count = max_retries_count->val.integer;
 		fsd_log_info(("Max retries count: %d", pbsself->max_retries_count));
+	  }
+
+	if ( connection_max_lifetime && connection_max_lifetime->type == FSD_CONF_INTEGER)
+	  {
+		pbsself->connection_max_lifetime = connection_max_lifetime->val.integer;
+		fsd_log_info(("Max connection lifetime: %d", pbsself->connection_max_lifetime));
 	  }
 
 	if ( wait_thread_sleep_time && wait_thread_sleep_time->type == FSD_CONF_INTEGER)
@@ -314,52 +306,22 @@ pbsdrmaa_session_apply_configuration( fsd_drmaa_session_t *self )
 void
 pbsdrmaa_session_update_all_jobs_status( fsd_drmaa_session_t *self )
 {
-	volatile bool conn_lock = false;
 	volatile bool jobs_lock = false;
 	pbsdrmaa_session_t *pbsself = (pbsdrmaa_session_t*)self;
 	fsd_job_set_t *jobs = self->jobs;
 	struct batch_status *volatile status = NULL;
-	volatile int tries_left = pbsself->max_retries_count;
-	volatile int sleep_time = 1;
 
 	fsd_log_enter((""));
 
 	TRY
 	 {
-		conn_lock = fsd_mutex_lock( &self->drm_connection_mutex );
-retry:
+
 /* TODO: query only for user's jobs pbs_selstat + ATTR_u */
 #ifdef PBS_PROFESSIONAL
-		status = pbs_statjob( pbsself->pbs_conn, NULL, NULL, NULL );
+		status = pbsself->pbs_connection->statjob(pbsself->pbs_connection, NULL, NULL);
 #else
-		status = pbs_statjob( pbsself->pbs_conn, NULL, pbsself->status_attrl, NULL );
+		status = pbsself->pbs_connection->statjob(pbsself->pbs_connection, NULL, pbsself->status_attrl);
 #endif
-		fsd_log_info(( "pbs_statjob( fd=%d, job_id=NULL, attribs={...} ) =%p", pbsself->pbs_conn, (void*)status ));
-		if( status == NULL  &&  pbs_errno != 0 )
-		 {
-			if (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
-			 {
-				if ( pbsself->pbs_conn >= 0)
-					pbs_disconnect( pbsself->pbs_conn );
-retry_connect:
-				sleep(sleep_time++);
-				pbsself->pbs_conn = pbs_connect( pbsself->super.contact );
-				if( pbsself->pbs_conn < 0)
-				 {
-					if (tries_left--)
-						goto retry_connect;
-					else
-						pbsdrmaa_exc_raise_pbs( "pbs_connect" );
-				 }
-				else
-					goto retry;
-			 }
-			else
-			 {
-				pbsdrmaa_exc_raise_pbs( "pbs_statjob" );
-			 }
-		 }
-		conn_lock = fsd_mutex_unlock( &self->drm_connection_mutex );
 
 		 {
 			size_t i;
@@ -420,9 +382,7 @@ retry_connect:
 	FINALLY
 	 {
 		if( status != NULL )
-			pbs_statfree( status );
-		if( conn_lock )
-			conn_lock = fsd_mutex_unlock( &self->drm_connection_mutex );
+			 pbsself->pbs_connection->statjob_free(pbsself->pbs_connection, status );
 		if( jobs_lock )
 			jobs_lock = fsd_mutex_unlock( &jobs->mutex );
 	 }
