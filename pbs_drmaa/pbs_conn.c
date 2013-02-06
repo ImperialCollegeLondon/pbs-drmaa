@@ -57,9 +57,12 @@ static void pbsdrmaa_pbs_connection_autoclose_thread_loop( pbsdrmaa_pbs_conn_t *
 
 static void check_reconnect( pbsdrmaa_pbs_conn_t *self, bool reconnect);
 
+/*
 static void start_autoclose_thread( pbsdrmaa_pbs_conn_t *self );
 
 static void stop_autoclose_thread( pbsdrmaa_pbs_conn_t *self );
+
+static void autoclose_thread_loop( void *data ); */
 
 
 #if defined PBS_PROFESSIONAL && defined PBSE_HISTJOBID
@@ -108,7 +111,6 @@ pbsdrmaa_pbs_conn_new( fsd_drmaa_session_t *session, const char *server )
 
 			if (self->connection_fd != -1)
 				pbs_disconnect(self->connection_fd);
-			stop_autoclose_thread(self);
 		  }
 			
 		fsd_exc_reraise();
@@ -513,15 +515,37 @@ retry_connect: /* Life... */
 }
 
 
-static void start_autoclose_thread( pbsdrmaa_pbs_conn_t *self )
+/*
+void start_autoclose_thread( pbsdrmaa_pbs_conn_t *self )
 {
 
 
 }
 
-static void stop_autoclose_thread( pbsdrmaa_pbs_conn_t *self )
+void stop_autoclose_thread( pbsdrmaa_pbs_conn_t *self )
 {
 
 
 }
 
+void autoclose_thread_loop( void *data )
+{
+	pbsdrmaa_pbs_conn_t *self = (pbsdrmaa_pbs_conn_t *)data;
+	struct timespec wait_time;
+
+	fsd_mutex_lock(&self->session->drm_connection_mutex);
+
+	if (fsd_cond_timedwait(&self->autoclose_cond, &self->session->drm_connection_mutex, wait_time);
+	 {
+		fsd_log_debug("autoclose thread signaled, waiting again");
+	 }
+	else
+	 {
+		fsd_log_info("autoclosing PBS connection: fd=%d, time_diff=%d", self->connection_fd, (int)(time(NULL) - self->last_connect_time));
+		pbs_disconnect(self->connection_fd);
+		self->connection_fd = -1;
+	 }
+
+	fsd_mutex_unlock(&self->session->drm_connection_mutex);
+}
+*/
