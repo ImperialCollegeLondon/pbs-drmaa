@@ -52,7 +52,7 @@ static void pbsdrmaa_pbs_rlsjob( pbsdrmaa_pbs_conn_t *self, char *job_id );
 
 static void pbsdrmaa_pbs_holdjob( pbsdrmaa_pbs_conn_t *self,  char *job_id );
 
-static void pbsdrmaa_pbs_connection_autoclose_thread_loop( pbsdrmaa_pbs_conn_t *self, bool reconnect);
+/* static void pbsdrmaa_pbs_connection_autoclose_thread_loop( pbsdrmaa_pbs_conn_t *self, bool reconnect); */
 
 
 static void check_reconnect( pbsdrmaa_pbs_conn_t *self, bool reconnect);
@@ -110,7 +110,10 @@ pbsdrmaa_pbs_conn_new( fsd_drmaa_session_t *session, const char *server )
 			fsd_free(self);
 
 			if (self->connection_fd != -1)
+			  {
+	                        fsd_log_info(( "pbs_disconnect(%d)", self->connection_fd ));
 				pbs_disconnect(self->connection_fd);
+			  }
 		  }
 			
 		fsd_exc_reraise();
@@ -131,11 +134,14 @@ pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self )
 	{
 		if(self != NULL)
 		{
+			if (self->connection_fd != -1)
+			  {
+				fsd_log_info(( "pbs_disconnect(%d)", self->connection_fd ));
+				pbs_disconnect(self->connection_fd);
+
+			  }
 			fsd_free(self->server);
 			fsd_free(self);	
-
-			if (self->connection_fd != -1)
-				pbs_disconnect(self->connection_fd);
 		}
 	}
 	EXCEPT_DEFAULT
@@ -219,7 +225,7 @@ pbsdrmaa_pbs_statjob( pbsdrmaa_pbs_conn_t *self,  char *job_id, struct attrl *at
 retry:
 		status = pbs_statjob(self->connection_fd, job_id, attrib, NULL);
 
-		fsd_log_info(( "pbs_statjob( fd=%d, job_id=%s, attribs={...} ) =%p", self->connection_fd, job_id, (void*)status));
+		fsd_log_info(( "pbs_statjob( fd=%d, job_id=%s, attribs={...} ) = %p", self->connection_fd, job_id, (void*)status));
 
 		if(status == NULL)
 		 {
@@ -229,7 +235,7 @@ retry:
 			 }
 			else if (IS_TRANSIENT_ERROR && first_try)
 			 {
-				fsd_log_error(( "pbs_statjob failed, pbs_errno = %d", pbs_errno ));
+				fsd_log_info(( "pbs_statjob failed, pbs_errno = %d, retrying", pbs_errno ));
 				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
@@ -343,9 +349,9 @@ retry:
 
 		if(rc != PBSE_NONE)
 		 {
-			fsd_log_error(( "pbs_deljob failed, rc = %d, pbs_errno = %d", rc, pbs_errno ));
 			if (IS_TRANSIENT_ERROR && first_try)
 			 {
+				fsd_log_info(( "pbs_deljob failed, rc = %d, pbs_errno = %d. Retrying...", rc, pbs_errno ));
 				check_reconnect(self, true);
 				first_try = false;
 				goto retry;
@@ -490,7 +496,7 @@ check_reconnect( pbsdrmaa_pbs_conn_t *self, bool force_reconnect)
 		  }
 		else
 		 {
-			stop_autoclose_thread(self);
+			fsd_log_info(( "pbs_disconnect(%d)", self->connection_fd ));
 			pbs_disconnect(self->connection_fd);
 			self->connection_fd = -1;
 		 }
@@ -500,7 +506,7 @@ check_reconnect( pbsdrmaa_pbs_conn_t *self, bool force_reconnect)
 
 retry_connect: /* Life... */
 	self->connection_fd = pbs_connect( self->server );
-	fsd_log_info(( "pbs_connect(%s) =%d", self->server, self->connection_fd ));
+	fsd_log_info(( "pbs_connect(%s) = %d", self->server, self->connection_fd ));
 	if( self->connection_fd < 0 && tries_left-- )
 	  {
 		sleep(sleep_time);

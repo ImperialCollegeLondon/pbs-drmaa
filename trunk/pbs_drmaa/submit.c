@@ -206,8 +206,6 @@ pbsdrmaa_submit_submit( pbsdrmaa_submit_t *self )
 
 		job_id = ((pbsdrmaa_session_t *)self->session)->pbs_connection->submit( ((pbsdrmaa_session_t *)self->session)->pbs_connection, (struct attropl*)pbs_attr, self->script_filename, self->destination_queue);
 
-		fsd_log_info(("pbs_submit(%s, %s) =%s", self->script_filename, self->destination_queue, job_id));
-
 	 }
 	EXCEPT_DEFAULT
 	 {

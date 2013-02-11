@@ -81,39 +81,36 @@ pbsdrmaa_job_control( fsd_job_t *self, int action )
 
 	fsd_log_enter(( "({job_id=%s}, action=%d)", self->job_id, action ));
 
-	while ( true )
+	switch( action )
 	 {
-		switch( action )
-		 {
-			/*
-			 * We cannot know whether we did suspend job
-			 * in other way than remembering this inside DRMAA session.
-			 */
-			case DRMAA_CONTROL_SUSPEND:
-				session->pbs_connection->sigjob( session->pbs_connection, (char*)job_id, "SIGSTOP");
-				self->flags |= FSD_JOB_SUSPENDED;
-				break;
-			case DRMAA_CONTROL_RESUME:
-				session->pbs_connection->sigjob( session->pbs_connection, (char*)job_id, "SIGCONT");
-				self->flags &= ~FSD_JOB_SUSPENDED;
-				break;
-			case DRMAA_CONTROL_HOLD:
-				session->pbs_connection->holdjob( session->pbs_connection, (char*)job_id );
-				self->flags |= FSD_JOB_HOLD;
-				break;
-			case DRMAA_CONTROL_RELEASE:
-				session->pbs_connection->rlsjob( session->pbs_connection, (char*)job_id );
-				self->flags &= ~FSD_JOB_HOLD;
-				break;
-			case DRMAA_CONTROL_TERMINATE:
-				session->pbs_connection->deljob( session->pbs_connection, (char*)job_id );
-				/* TODO: make deldelay configurable ???:
-				 * deldelay=N -- delay between SIGTERM and SIGKILL (default 0) */
-				self->flags &= FSD_JOB_TERMINATED_MASK;
-				if( (self->flags & FSD_JOB_TERMINATED) == 0 )
-					self->flags |= FSD_JOB_TERMINATED | FSD_JOB_ABORTED;
-				break;
-		 }
+		/*
+		 * We cannot know whether we did suspend job
+		 * in other way than remembering this inside DRMAA session.
+		 */
+		case DRMAA_CONTROL_SUSPEND:
+			session->pbs_connection->sigjob( session->pbs_connection, (char*)job_id, "SIGSTOP");
+			self->flags |= FSD_JOB_SUSPENDED;
+			break;
+		case DRMAA_CONTROL_RESUME:
+			session->pbs_connection->sigjob( session->pbs_connection, (char*)job_id, "SIGCONT");
+			self->flags &= ~FSD_JOB_SUSPENDED;
+			break;
+		case DRMAA_CONTROL_HOLD:
+			session->pbs_connection->holdjob( session->pbs_connection, (char*)job_id );
+			self->flags |= FSD_JOB_HOLD;
+			break;
+		case DRMAA_CONTROL_RELEASE:
+			session->pbs_connection->rlsjob( session->pbs_connection, (char*)job_id );
+			self->flags &= ~FSD_JOB_HOLD;
+			break;
+		case DRMAA_CONTROL_TERMINATE:
+			session->pbs_connection->deljob( session->pbs_connection, (char*)job_id );
+			/* TODO: make deldelay configurable ???:
+			 * deldelay=N -- delay between SIGTERM and SIGKILL (default 0) */
+			self->flags &= FSD_JOB_TERMINATED_MASK;
+			if( (self->flags & FSD_JOB_TERMINATED) == 0 )
+				self->flags |= FSD_JOB_TERMINATED | FSD_JOB_ABORTED;
+			break;
 	 }
 
 	fsd_log_return((""));
