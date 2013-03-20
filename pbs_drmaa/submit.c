@@ -824,6 +824,7 @@ pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 		  }
 		
 		exit_status = fsd_exec_sync(submit_filter, empty_args, stdin_buf, &stdout_buf, &stderr_buf);
+    fsd_free(stdin_buf);
 
 		if (exit_status != 0)
 		  {
@@ -858,7 +859,9 @@ pbsdrmaa_submit_filter(struct attrl *pbs_attr)
 
 			pbs_attr = pbsdrmaa_add_attr( pbs_attr, attr_name, attr_value );
       }
-		
+
+	  fsd_free(stdout_buf);
+    fsd_free(stderr_buf);	
 
 		return pbs_attr;
 	  }
