@@ -227,7 +227,7 @@ retry:
 
 		fsd_log_info(( "pbs_statjob( fd=%d, job_id=%s, attribs={...} ) = %p", self->connection_fd, job_id, (void*)status));
 
-		if(status == NULL)
+		if(status == NULL && pbs_errno)
 		 {
 			if (IS_MISSING_JOB)
 			 {
