@@ -406,7 +406,6 @@ pbsdrmaa_submit_apply_job_files( pbsdrmaa_submit_t *self )
 	const fsd_template_t *jt = self->job_template;
 	fsd_template_t *pbs_attr = self->pbs_job_attributes;
 	const char *join_files;
-	bool b_join_files;
 	int i;
 
 	for( i = 0;  i < 2;  i++ )
@@ -436,8 +435,15 @@ pbsdrmaa_submit_apply_job_files( pbsdrmaa_submit_t *self )
 	 }
 
 	join_files = jt->get_attr( jt, DRMAA_JOIN_FILES );
-	b_join_files = join_files != NULL  &&  !strcmp(join_files,"1");
-	pbs_attr->set_attr( pbs_attr, PBSDRMAA_JOIN_FILES, (b_join_files ? "y" : "n") ); 
+	if (join_files != NULL && strcmp(join_files, "y") == 0)
+	  {
+		pbs_attr->set_attr( pbs_attr, PBSDRMAA_JOIN_FILES, "oe" ); 
+	  }
+        else if (join_files != NULL && strcmp(join_files, "n") != 0)
+          {
+		fsd_exc_raise_fmt( FSD_ERRNO_INVALID_VALUE, "invalid value of %s attribute. Should be 'y' or 'n'.",
+					DRMAA_JOIN_FILES );
+          }
 }
 
 
