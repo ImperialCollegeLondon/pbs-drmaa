@@ -70,7 +70,7 @@ static void autoclose_thread_loop( void *data ); */
 #else
 	#define IS_MISSING_JOB (pbs_errno == PBSE_UNKJOBID)
 #endif
-#define IS_TRANSIENT_ERROR (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED)
+#define IS_TRANSIENT_ERROR (pbs_errno == PBSE_PROTOCOL || pbs_errno == PBSE_EXPIRED || pbs_errno == PBSOLDE_PROTOCOL || pbs_errno == PBSOLDE_EXPIRED || pbs_errno == PBSE_BADCRED)
 
 pbsdrmaa_pbs_conn_t * 
 pbsdrmaa_pbs_conn_new( fsd_drmaa_session_t *session, const char *server )
