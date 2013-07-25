@@ -358,7 +358,7 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 									fsd_log_info(("WT - Job %s killed before entering running state (%d).", job->job_id, job->state));
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "C");
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_MTIME, timestamp_unix);
-									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXIT_STATUS, "-2");
+									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXIT_STATUS, "-101");
 								 }
 								else
 								 {
