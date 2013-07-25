@@ -94,6 +94,9 @@ pbsdrmaa_session_new( const char *contact )
 	 {
 		self = (pbsdrmaa_session_t*)fsd_drmaa_session_new(contact);
 		fsd_realloc( self, 1, pbsdrmaa_session_t );
+
+		fsd_mutex_lock( &self->super.mutex );
+
 		self->super_wait_thread = NULL;
 
 		self->log_file_initial_size = 0;
@@ -124,11 +127,13 @@ pbsdrmaa_session_new( const char *contact )
 		self->pbs_connection = pbsdrmaa_pbs_conn_new( (fsd_drmaa_session_t *)self, contact );
 		self->connection_max_lifetime =  30; /* 30 seconds */
 
+		fsd_mutex_unlock( &self->super.mutex );
 	 }
 	EXCEPT_DEFAULT
 	 {
 		if( self )
 		  {
+			fsd_mutex_unlock( &self->super.mutex );
 			self->super.destroy( &self->super );
 			self = NULL;
 		  }
