@@ -17,7 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- #ifdef HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #	include <config.h>
 #endif
 
@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
+
 
 
 static char* pbsdrmaa_pbs_submit( pbsdrmaa_pbs_conn_t *self, struct attropl *attrib, char *script, char *destination );
@@ -153,30 +154,30 @@ pbsdrmaa_pbs_conn_destroy ( pbsdrmaa_pbs_conn_t * self )
 	fsd_log_return((""));
 }
 
-#define HAS_PBS_SUBMIT_HASH		
-#ifdef HAS_PBS_SUBMIT_HASH
+#ifdef HAVE_PBS_SUBMIT_HASH
 
-#include <qsub_functions.h>
+
+#include <torque4.h>
 
 void set_job_defaults(job_info *ji) {
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_c, CHECKPOINT_UNSPECIFIED, STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_c, CHECKPOINT_UNSPECIFIED, STATIC_DATA);
 
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_h, NO_HOLD, STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_h, NO_HOLD, STATIC_DATA);
 
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_j, NO_JOIN, STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_j, NO_JOIN, STATIC_DATA);
 
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_k, NO_KEEP, STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_k, NO_KEEP, STATIC_DATA);
 
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_m, MAIL_AT_ABORT, STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_m, MAIL_AT_ABORT, STATIC_DATA);
 
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_p, DEFAULT_PRIORITY, STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_p, DEFAULT_PRIORITY, STATIC_DATA);
 
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_r, "FALSE", STATIC_DATA);
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_f, "FALSE", STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_r, "FALSE", STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_f, "FALSE", STATIC_DATA);
   
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->client_attr, "pbs_dprefix", "#PBS", STATIC_DATA);
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_job_radix, "0", STATIC_DATA);
-  _Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji->mm, &ji->job_attr, ATTR_v, "");
+  hash_add_or_exit_c(&ji->mm, &ji->client_attr, "pbs_dprefix", "#PBS", STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_job_radix, "0", STATIC_DATA);
+  hash_add_or_exit_c(&ji->mm, &ji->job_attr, ATTR_v, "", ENV_DATA);
 }  
 
 
@@ -191,7 +192,7 @@ static char *pbs_submit_4_wrapper(int connection_fd, struct attropl *attrib, cha
 
 	memset(&ji, 0, sizeof(job_info));
 
-	if (_Z11memmgr_initPP6memmgri(&ji.mm, 8192) != PBSE_NONE) /* do not want to use g++ just for this file*/
+	if (memmgr_init_c(&ji.mm, 8192) != PBSE_NONE) /* do not want to use g++ just for this file*/
 	  {
 		pbsdrmaa_exc_raise_pbs( "memmgr_init", connection_fd);
 	  }
@@ -200,9 +201,9 @@ static char *pbs_submit_4_wrapper(int connection_fd, struct attropl *attrib, cha
 
 	for (p = attrib; p; p = p->next) {
 		if (p->resource) {
-			_Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji.mm, &ji.res_attr, p->resource, p->value);
+			hash_add_or_exit_c(&ji.mm, &ji.res_attr, p->resource, p->value, CMDLINE_DATA);
 		} else {
-			_Z16hash_add_or_exitPP6memmgrPP8job_dataPKcS6_i(&ji.mm, &ji.job_attr, p->name, p->value);
+			hash_add_or_exit_c(&ji.mm, &ji.job_attr, p->name, p->value, CMDLINE_DATA);
 		}
 	}
 
@@ -222,7 +223,7 @@ static char *pbs_submit_4_wrapper(int connection_fd, struct attropl *attrib, cha
 	
 	jobname_copy = fsd_strdup(new_jobname);
 
-	_Z14memmgr_destroyPP6memmgr(&ji.mm);
+	memmgr_destroy_c(&ji.mm);
 
 	return jobname_copy;
 }
@@ -245,7 +246,7 @@ pbsdrmaa_pbs_submit( pbsdrmaa_pbs_conn_t *self, struct attropl *attrib, char *sc
 
 retry:
 
-#ifdef HAS_PBS_SUBMIT_HASH
+#ifdef HAVE_PBS_SUBMIT_HASH
 		job_id = pbs_submit_4_wrapper(self->connection_fd, attrib, script, destination);
 #else
 		job_id = pbs_submit(self->connection_fd, attrib, script, destination, NULL);
