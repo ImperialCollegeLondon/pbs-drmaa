@@ -31,7 +31,10 @@ libdrmaa_la_SOURCES = \
  submit.c submit.h \
  util.c util.h \
  log_reader.c log_reader.h \
- pbs_conn.c pbs_conn.h
+ pbs_conn.c pbs_conn.h 
+if TORQUE4
+libdrmaa_la_SOURCES += torque4.cpp torque4.h
+endif
 BUILT_SOURCES       = pbs_attrib.c
 EXTRA_DIST          = pbs_attrib.c
 dist_sysconf_DATA   = pbs_drmaa.conf.example

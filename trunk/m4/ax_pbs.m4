@@ -37,6 +37,7 @@ AC_SUBST(PBS_LIBS)
 AC_SUBST(PBS_LDFLAGS)
 
 if test x"$with_pbs" != x; then
+	PBS_HOME=$with_pbs
 	PBS_INCLUDES="-I${with_pbs}/include "
 	PBS_LDFLAGS="-L${with_pbs}/lib "
 else
@@ -49,6 +50,8 @@ else
 	fi
 fi
 
+
+PBS_INCLUDES="$PBS_INCLUDES -I${PBS_HOME}/include/torque "
 LDFLAGS_save="$LDFLAGS"
 CPPFLAGS_save="$CPPFLAGS"
 LDFLAGS="$LDFLAGS $PBS_LDFLAGS"
@@ -58,6 +61,7 @@ ax_pbs_ok="no"
 
 AH_TEMPLATE([PBS_PROFESSIONAL], [compiling against PBS Professional])
 AH_TEMPLATE([PBS_PROFESSIONAL_NO_LOG], [Do not use liblog while linking with PBS Professional])
+AH_TEMPLATE([HAVE_PBS_SUBMIT_HASH], [Torque 4 pbs_submit_hash function found])
 
 if test x"$enable_pbs_log" != "xno"; then
 	ax_pbs_lib_log=" -llog"
@@ -87,17 +91,23 @@ if test x"$ax_pbs_ok" = xno; then
 	fi
 fi
 
+ax_pbs_submit_hash="no"
 
 if test x"$ax_pbs_ok" = xno; then
  	ax_pbs_ok="yes"
  	AC_CHECK_LIB([torque], [pbs_submit], [:], [ax_pbs_ok="no"])
  	AC_CHECK_LIB([torque], [pbse_to_txt], [:], [ax_pbs_ok="no"])
+	AC_CHECK_LIB([torque], [pbs_submit_hash], [AC_DEFINE(HAVE_PBS_SUBMIT_HASH) ax_pbs_submit_hash="yes"], [:])
+
+
  	if test x"$ax_pbs_ok" = xyes; then
  		ax_pbs_libs="-ltorque"
  	fi
 else
 	AC_DEFINE(PBS_PROFESSIONAL,[1])
 fi
+
+AM_CONDITIONAL([TORQUE4], [test x$ax_pbs_submit_hash = xyes])
 
 if test x"$ax_pbs_ok" = xyes; then
 	AC_CHECK_HEADERS([pbs_ifl.h pbs_error.h],[:],[ax_pbs_ok="no"])
