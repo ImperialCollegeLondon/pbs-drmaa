@@ -628,7 +628,7 @@ static void parse_additional_attr(fsd_template_t *pbs_attr,const char *add_attr)
 
 	TRY
 	  {
-		for (arg = strtok_r(add_attr_copy, ";", &ctxt); arg; arg = strtok_r(NULL, ";",&ctxt) )
+		for (arg = strtok_r(add_attr_copy, ",", &ctxt); arg; arg = strtok_r(NULL, ",",&ctxt) )
 		{
 			name = fsd_strdup(strtok_r(arg, "=", &ctxt2));
 			value = strtok_r(NULL, "=", &ctxt2);
