@@ -293,6 +293,12 @@ pbsdrmaa_pbs_statjob( pbsdrmaa_pbs_conn_t *self,  char *job_id, struct attrl *at
 	struct batch_status *volatile status = NULL;
 	volatile bool first_try = true;
 	volatile bool conn_lock = false;
+#if defined PBS_PROFESSIONAL
+    char *stat_job_extend = "x";
+#else
+    char *stat_job_extend = NULL;
+#endif
+
 
 
 	fsd_log_enter((""));
@@ -304,9 +310,13 @@ pbsdrmaa_pbs_statjob( pbsdrmaa_pbs_conn_t *self,  char *job_id, struct attrl *at
 		check_reconnect(self, false);
 
 retry:
-		status = pbs_statjob(self->connection_fd, job_id, attrib, NULL);
+		status = pbs_statjob(self->connection_fd, job_id, attrib, stat_job_extend);
 
+#if defined PBS_PROFESSIONAL
+		fsd_log_info(( "pbs_statjob( fd=%d, job_id=%s, attribs={...}, \"x\" ) = %p", self->connection_fd, job_id, (void*)status));
+#else
 		fsd_log_info(( "pbs_statjob( fd=%d, job_id=%s, attribs={...} ) = %p", self->connection_fd, job_id, (void*)status));
+#endif
 
 		if(status == NULL && pbs_errno)
 		 {
