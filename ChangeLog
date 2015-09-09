@@ -1,0 +1,8 @@
+2015-09-09 Piotr Kopta <pkopta@man.poznan.pl>
+    * pbs_drmaa/pbs_conn.c (pbsdrmaa_pbs_statjob): 'x' flag for PBS Pro
+    - this enables to query for finished and moved jobs
+
+2014-11-27 Piotr Kopta <pkopta@man.poznan.pl>
+
+    * pbs_drmaa/submit.c (parse_addition_attr): changed ';' to ',' as
+    parameter separate character of '-W' arguments
