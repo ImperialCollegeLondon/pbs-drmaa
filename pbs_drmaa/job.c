@@ -251,6 +251,9 @@ pbsdrmaa_job_update( fsd_job_t *self, struct batch_status *status )
 		switch( pbs_state )
 		 {
 			case 'C': /* Job is completed after having run. */
+#ifdef PBS_PROFESSIONAL
+			case 'F': /* Job is completed after having run. */
+#endif
 				self->flags &= FSD_JOB_TERMINATED_MASK;
 				self->flags |= FSD_JOB_TERMINATED;
 				if (exit_status != -101) { /* has exit code */
