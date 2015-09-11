@@ -103,8 +103,11 @@ if test x"$ax_pbs_ok" = xno; then
  	if test x"$ax_pbs_ok" = xyes; then
  		ax_pbs_libs="-ltorque"
  	fi
+
+	AM_CONDITIONAL([PBS_PROFESSIONAL], [false])
 else
 	AC_DEFINE(PBS_PROFESSIONAL,[1])
+	AM_CONDITIONAL([PBS_PROFESSIONAL], [true])
 fi
 
 AM_CONDITIONAL([TORQUE4], [test x$ax_pbs_submit_hash = xyes])
