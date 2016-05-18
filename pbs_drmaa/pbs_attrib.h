@@ -80,13 +80,18 @@ int pbsdrmaa_pbs_attrib_by_name( const char *name );
 #define PBSDRMAA_QUEUE                  "queue"
 #define PBSDRMAA_SERVER                 "server"
 #define PBSDRMAA_COMMENT                "comment"
-#define PBSDRMAA_EXIT_STATUS            "exit_status"
 #define PBSDRMAA_START_TIME             "start_time"
 #define PBSDRMAA_EXTENSION              "extension"
 #define PBSDRMAA_SUBMIT_ARGS            "submit_args"
 #define PBSDRMAA_MTIME                  "mtime"
 #define PBSDRMAA_NODE_PROPERTIES        "pbsdrmaa.node_properties"
 #define PBSDRMAA_CUSTOM_RESOURCES       "pbsdrmaa.custom_resources"
+
+#ifdef PBS_PROFESSIONAL
+#	define PBSDRMAA_EXIT_STATUS        	"Exit_status"
+#else
+#	define PBSDRMAA_EXIT_STATUS        	"exit_status"
+#endif
 
 typedef enum {
 	PBSDRMAA_ATTR_EXECUTION_TIME,
