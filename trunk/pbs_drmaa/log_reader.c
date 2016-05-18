@@ -356,7 +356,13 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								if (job->state < DRMAA_PS_RUNNING)
 								 {
 									fsd_log_info(("WT - Job %s killed before entering running state (%d).", job->job_id, job->state));
+
+#ifdef PBS_PROFESSIONAL
+									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "F");
+#else
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "C");
+#endif
+
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_MTIME, timestamp_unix);
 									attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_EXIT_STATUS, "-101");
 								 }
@@ -377,7 +383,11 @@ pbsdrmaa_read_log( pbsdrmaa_log_reader_t * self )
 								char *tok_ctx2 = NULL;
 								char *token = NULL;
 
+#ifdef PBS_PBS_PROFESSIONAL
+								attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "F");
+#else
 								attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_JOB_STATE, "C");
+#endif
 								attribs = pbsdrmaa_add_attr(attribs, PBSDRMAA_MTIME, timestamp_unix);
 
 								/* tokenize !!! */
