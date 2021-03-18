@@ -1,0 +1,379 @@
+= DRMAA for Torque/PBS Pro =
+[[PageOutline]]  
+
+== Introduction ==
+
+DRMAA for Torque/PBS Pro is implementation of  Open Grid Forum  [http://drmaa.org/ DRMAA]
+(Distributed Resource Management Application API) specification for
+submission and control jobs to PBS systems: [http://www.clusterresources.com/products/torque-resource-manager.php Torque] 
+and [http://www.pbsworks.com/Product.aspx?id=1 PBS Professional].  Using DRMAA, grid applications builders, portal developers
+and ISVs can use the same high-level API to link their software with
+different cluster/resource management systems.
+
+This software also enables the integration of [http://apps.man.poznan.pl/trac/qcg-computing QCG-Computing]
+with the underlying Torque/PBS Pro system for remote multi-user job submission
+and control over Web Services.
+
+== Download ==
+
+DRMAA for Torque/PBS Pro is distributed as a source package which can be downloaded from [http://sourceforge.net/projects/pbspro-drmaa/files/pbs-drmaa/1.0/ sourceforge].
+
+== SVN access ==
+
+{{{
+  $ svn co https://apps.man.poznan.pl/svn/pbs-drmaa/
+}}}
+
+Please note the `./autogen.sh` and `./autoclean.sh` scripts which calls the autotools command chain in appropriate order.
+
+**note:** You need some [#dev_tools developer tools] to compile the svn version. Please note that the trunk version may not always compile.
+
+== Installation ==
+=== From Sources ===
+To compile the library just go to main source directory and type:
+
+{{{
+  $ ./configure [--prefix=/installation/directory] && make
+}}}
+
+If you had installed PBS in a non standard directory pass it
+in `--with-pbs` configure parameter.  There are no unusual requirements
+for basic usage of library: ANSI C compiler and standard make should
+suffice (if linking against PBS Professional you will need also the OpenSSL library).  
+If you have taken sources directly from SVN repository you would 
+need additional [#dev_tools developer tools]. For further information regarding GNU 
+build system see the INSTALL file.
+
+=== From Binary Packages ===
+Currently the following binary packages are available:
+* Scientific Linux 5.x x86_64 (should work with Centos 5 and REL 5): [http://fury.man.poznan.pl/qcg-packages/sl/x86_64/ download]
+* Debian [http://packages.qa.debian.org/p/pbs-drmaa.html download]
+
+== Configuration ==
+For [http://www.clusterresources.com/products/torque-resource-manager.php Torque] it is advised to configure queues so jobs are leaved after
+the completion.  To achieve this simply type the following command for
+all queues which are intended to use with PBS DRMAA:
+
+{{{
+  # qmgr -c "set queue QUEUE_NAME keep_completed = 60"
+}}}
+
+or simply set is as the global server parameter:
+
+{{{
+  # qmgr -c "set server keep_completed = 60"
+}}}
+
+The value of the `keep_completed` parameter denotes a number of
+seconds jobs will have to wait in the queue after the completion (and
+should be greater then `pool_delay` value in PBS DRMAA configuration).
+It enables the DRMAA library to retrieve the information about finished
+jobs.
+
+Alternatively you can configure the DRMAA library to use Torque server daemon logs
+as information source for terminated jobs (consult the next section for details).
+
+== Configuration ==
+
+During DRMAA session initialization (`drmaa_init`) library tries to read
+its configuration parameters from locations:
+
+* `PREFIX/etc/pbs_drmaa.conf`, 
+* `~/.pbs_drmaa.conf`
+* and from file given in `PBS_DRMAA_CONF` environment variable (if set to non-empty string).
+
+If multiple configuration sources are present then all configurations
+are merged with values from user-defined files taking precedence
+(in the following order: `PBS_DRMAA_CONF`, `~/.pbs_drmaa.conf`,
+`PREFIX/etc/pbs_drmaa.conf`).
+
+Currently recognized configuration parameters are:
+
+  pool_delay::
+    Amount of time (in seconds) between successive checks of unfinished job(s).
+
+    Type: integer, Default: 5
+
+  wait_thread::
+    Value 1 enables single "wait thread" for updating jobs status. 
+    With `pbs_home` set enables wait_thread which reads PBS log files (instead of polling PBS daemons).
+
+    Type: integer, Default: 0
+
+[=#pbs_home]
+  pbs_home::
+    Path to Torque/PBS Pro spool directory that contains server logs (`server_logs` directory) , e.g.: /var/spool/pbs.
+
+    Type: string, Default: not set
+     
+  job_categories::
+    Dictionary of job categories.  It's keys are job categories names
+    mapped to `native specification` strings.  Attributes set by
+    job category can be overridden by corresponding DRMAA attributes
+    or native specification.  Special category name ``default``
+    is used when ``drmaa_job_category`` job attribute was not set.
+
+  cache_job_state::
+    According to the DRMAA specification every `drmaa_job_ps()` call should
+    query DRM system for job state.  With this option one may optimize
+    communication with DRM.  If set to positive integer `drmaa_job_ps()`
+    returns remembered job state without communicating with DRM for
+    `cache_job_state` seconds since last update.  By default library
+    conforms to specification (no caching will be performed).
+
+    Type: integer, Default: 0
+
+  max_retries_count::
+    Maximal number of retries count in pbs_connect.
+
+    Type: integer, Default: 3
+
+  wait_thread_sleep_time::
+    The time (expressed in seconds) that the wait thread sleeps between it poll log file for new data.
+
+    Type: integer, Default: 1 (second)
+
+  user_state_dir::
+    The location of user's state dir, a directory which is used to store job exit statuses. Use `%s` as the replacement for the user's name (e.g. `/scratch/%s/.drmaa`).
+
+    Type: string, Default: $HOME/.drmaa
+===  Different modes of operation ===
+
+||=wait_thread  =||=pbs_home  =||=mode    =||=   keep_completed needed    =||=   comments                               =||
+||       0                || not set            || polling      ||     yes                                       || default configuration                    ||
+||       1                || not set            || polling      ||     yes                                       || more efective in case of many concurrent drmaa_wait calls  ||
+||       1                || set                  || triggered  ||      no                                        || read access to server logs needed ||
+  
+
+=== Configuration file syntax ===
+
+Configuration file is in form a dictionary.
+Dictionary is set of zero or more key-value pairs.
+Key is a string while value could be a string, an integer
+or another dictionary.
+
+{{{
+
+  configuration: dictionary | dictionary_body
+  dictionary: '{' dictionary_body '}'
+  dictionary_body: (string ':' value ',')*
+  value: integer | string | dictionary
+  string: unquoted-string | single-quoted-string | double-quoted-string
+  unquoted-string: [^ \t\n\r:,0-9][^ \t\n\r:,]*
+  single-quoted-string: '[^']*'
+  double-quoted-string: "[^"]*"
+  integer: [0-9]+
+}}}
+
+
+
+=== Configuration file example ===
+
+{{{
+  
+  # pbs_drmaa.conf - Sample pbs_drmaa configuration file.
+  
+  wait_thread: 0,
+
+  #pool_delay: 5,
+
+  job_categories: {
+	#default: "-k n", # delete output files from execution hosts
+	longterm: "-p -100 -l nice=5",
+	amd64: "-l arch=amd64",
+	python: "-l software=python",
+	java: "-l software=java,vmem=500mb -v PATH=/opt/sun-jdk-1.6:/usr/bin:/bin",
+	#test: "-u test -q testing",
+  },
+  
+}}}
+
+== Native specification ==
+
+DRMAA interface allows to pass DRM dependant job submission options.
+Those options may be specified by setting the `drmaa_native_specification` job template attribute. 
+The  `drmaa_native_specification` accepts space delimited `qsub`-like
+options. The library support most of `qsub` option, except those which does not set job attributes (e.g. `-b`, `-z`, `-C`) as
+well as meant for submission of interactive jobs (`-I`, `-X`) or
+to specify directories (`-d`, `-D`).
+Also instead of `-W` option following long options are accepted
+within native specification: `--depend`, `--group-list`, `--stagein`
+and `--stageout`.  For detailed description of each option see PBS
+documentation.
+
+Attributes set in native specification overrides corresponding DRMAA job
+attributes.
+
+The below table summarize valid native specification strings and corresponding DRMAA/PBS attributes.
+
+||= DRMAA attribute =||= PBS attribute =||= PBS resource native specification =||
+||||||=                   Attributes which get overridden                 =||
+||  drmaa_job_name      ||  Job_Name                   ||  `-N` job name   ||    
+||  drmaa_output_path   ||  Output_Path                ||  `-o` output path   || 
+||  drmaa_error_path    ||  Error_Path                 ||  `-e` error path    || 
+||  drmaa_join_files    ||  Join_Path                  ||  `-j` join options   ||
+||  drmaa_block_email   ||  Mail_Points                ||  `-m` mail options   ||
+||  drmaa_start_time    ||  Execution_Time             ||  `-a` start time     ||
+||  drmaa_js_state      ||  Hold_Types                 ||  `-h`                ||
+||  ..                  ||  Account_Name               ||  `-A` account string  ||
+||  ..                  ||  Checkpoint                 ||  `-c` interval       ||
+||  ..                  ||  Keep_Files                 ||  `-k` keep           ||
+||  ..                  ||  Priority                   ||  `-p` priority       ||
+||  ..                  ||  destination                ||  `-q` queue          ||
+||  ..                  ||  Rerunable                  ||  `-r` y/n            ||
+||  ..                  ||  Shell_Path_List            ||  `-S` path list      ||
+||  ..                  ||  User_List                  ||  `-u` user list      ||
+||  ..                  ||  group_list                 ||  `--group_list=`\groups  ||
+||  drmaa_v_env         ||  Variable_List              ||  `-v` variable list  ||
+||  ..                  ||  Variable_List              ||  `-V`                ||
+||  drmaa_v_email       ||  Mail_Users                 ||  `-M` user list      ||
+||  drmaa_duration_hlimit ||  Resource_List   cput     ||    `-l cput=`\limit    ||
+||  drmaa_wct_hlimit      ||  Resource_List   walltime ||    `-l walltime=`\limit  ||
+||  ..                    ||  Resource_List.name=value            ||    `-l` custom_resources=name:value      ||
+
+== Submit filter ==
+Because PBS DRMAA use Torque C API instead of commandline tools (like `qsub`) it also bypass the [[http://www.clusterresources.com/torquedocs21/a.jqsubwrapper.shtml| job submission filter]]. 
+Fortunately since version 1.0.12 PBS DRMAA implements its own, complementary, mechanism. Before every job submission it checks if the PBSDRMAA_SUBMIT_FILTER environment variable is set and executes a script pointed by it passing the 
+job'a PBS attributes (`man pbs_job_attributes`) to the script stdin. The script can echo, dismiss or alter any of the attribute. In case the submission process should be stopped the script should exit with non-zero status and print error message to stderr. As  an example: a `/bin/cat` command would be a no-operation submit filter.
+
+= Changelog =
+== Changes in 1.0.17 release ==
+ *  Torque 4 support
+== Changes in 1.0.15 release ==
+ * Fixed segfault in the "wait thread" due to pbs_connection not being initialized
+
+== Changes in 1.0.14 release ==
+ * Fixed serious memory leak in DRMAA submit filter
+== Changes in 1.0.13 release ==
+ * refactoring of PBS connection handling routines
+ * better error handling
+== Changes in 1.0.12 release ==
+ * PBS Submit filter
+== Changes in 1.0.11 release ==
+ * added two new configuration parameters: `wait_thread_wait_time` and `max_retries_count`
+ * added handling of npcus and procs resources in native
+== Changes in 1.0.10 release ==
+ * redesigned log parsing facility
+ * fixed handling of `-q queue` attribute in native specification
+== Changes in 1.0.9 release ==
+ * setting of PBS_O_WORKDIR variable
+ * now one can use '-lmem' in native specification attribute
+== Changes in 1.0.8 release ==
+ * use accounting logs to get execution hosts of short running jobs
+== Changes in 1.0.7 release ==
+ * print info log message on qstat
+== Changes in 1.0.6 release ==
+ * missing Resource_List.mem attribute added
+== Changes in 1.0.5 release ==
+ * make drmaa tolerant to torque restarts
+ * now one can use '-lmem' in native specification attribute
+
+== Changes in 1.0.4 release ==
+ * fix "mtime" date parsing ('triggered' mode)
+ * fix "submit_args" attribute bug (PBS Professional only)
+
+== Changes in 1.0.3 release ==
+
+ * new implementation of the "wait thread" which reads PBS log files (increased scalability)
+ * support for native specification attribute
+ * memleak fixes
+ * testsuite passed on PBS Pro 10
+ * exit codes 126-127 force the `drmaa_wifaborted()` to return true
+ * other bug fixes
+
+== Changes in 1.0.2 release ==
+
+ * automatic reconnect on PBS connection errors 
+ * static linkage with DRMAA utilities
+ * other bug fixes
+ 
+== Changes in 1.0.1 release ==
+
+ * number of attributes implemented:
+
+   - `drmaa_start_time`
+   - `drmaa_duration_hlimit`
+   - `drmaa_wct_hlimit`
+   - `drmaa_native_specification`
+   - `drmaa_job_category`
+
+ * configuration file(s)
+ * separate wait thread
+ * lot of bug fixes
+ * more robust code
+ * separated DRMAA utilities library
+ * Python driven test-suite
+
+== Known bugs and limitations ==
+
+Library covers nearly all [http://www.ogf.org/documents/GFD.133.pdf DRMAA 1.0 specification] with exceptions
+listed below.  It passes the `official DRMAA test-suite` except of tests
+which require job termination status.  All mandatory and some optional
+job attributes (namely: transfer files, wall clock time hard limit,
+job run duration hard limit) are implemented.
+
+Known limitations imposed by PBS API:
+
+ * With PBS Pro (and !OpenPBS) retrieving of job termination status is
+   impossible.  For this DRM finished jobs are marked as done with 0
+   return code unless job was terminated through library when they are
+   treated as aborted and killed after receiving SIGTERM. In version 1.0.3 
+   you can avoid this and configure library to utilize the pbs log file 
+  (see: [#pbs_home pbs_home configuration property]).
+
+ * Library accepts job identifiers only of those jobs which
+   were submitted under current session (specification says it should
+   also accept job identifiers from previous sessions and even of
+   jobs submitted in former execution of DRMAA enabled application).
+   This could only be partially fixed as job state needs to be kept by
+   library in order to cope with PBS shortcomings.
+
+ * Job termination (when job is running) is realized by PBS
+   by sending SIGTERM and/or SIGKILL therefore retrieving
+   those signals cannot be distinguished from abort using
+   `drmaa_control(DRMAA_CONTROL_TERMINATE)`.  Then job termination
+   state is marked as "aborted" and "signaled" whatever is the state.
+
+ * `drmaa_wcoredump()` always returns `false`.
+
+ * Waiting functions (`drmaa_wait()` and `drmaa_synchronize()`)
+   must pool DRM to find out whether job finished. Since version 1.0.3 
+   you can avoid this and configure library to utilize the pbs log file 
+   (see: [#pbs_home pbs_home configuration property]).
+
+[=#dev_tools]
+== Developer tools ==
+
+Although not needed for library user the following tools may be required
+if you intend to develop PSNC DRMAA for Torque/PBS Pro:
+* GNU autotools
+ ** autoconf (tested with version 2.67)
+ ** automake (tested with version 1.11)
+ ** libtool (tested with version 2.2.8)
+ ** m4 (tested with version 1.4.14)
+ * [http://www.gnu.org/software/bison/ Bison] parser generator,
+ * [http://www.complang.org/ragel/ RAGEL] State Machine Compiler,
+ * [http://www.gnu.org/software/gperf/ gperf] gperf - a perfect hash function generator.
+
+== Contact ==
+In case of any problems or questions regarding the DRMAA for Torque/PBS Pro do not hesitate to contact us:
+ * qcg at plgrid.pl 
+
+== Acknowledgments ==
+ * Dominique Belhachemi - Providing Debian Packages of PBS-DRMAA 
+
+== License ==
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see http://www.gnu.org/licenses/.
+ 
