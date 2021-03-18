@@ -1,19 +1,20 @@
 # DRMAA for Torque/PBS Pro
 
-**This is a copy of DRMAA v1 for PBS from the [original develpoment team](https://apps.man.poznan.pl/trac/pbs-drmaa) (revision 104, 30 Sept 2019)**
+**This is a copy of DRMAA v1 for PBS from the [original develpoment team](https://apps.man.poznan.pl/trac/pbs-drmaa)**
 
-Original authors:
+Last registered change for this version after importing from SVN is:  
+May 18, 2016  
+pkopta
 
+Tarball should correspond to [pbs-drmaa-1.0.19.tar.gz	2015-09-25	802.8 kB](https://sourceforge.net/projects/pbspro-drmaa/files/pbs-drmaa/1.0/)
+
+Original authors:  
 mmamonski  
 pkopta  
 
-The manual for the DRMAA for Torque/PBS Pro (since version 1.0.7) is available at the project wiki: 
-
-  http://apps.man.poznan.pl/trac/pbs-drmaa/wiki
-
 **We're moving a copy here to further develop as the original team seems to have stopped working on this long ago and we've been unable to contact them.**
 
-Help needed!
+Help welcome!
 
 Current status:
 
