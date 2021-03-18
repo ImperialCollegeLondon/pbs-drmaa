@@ -1,6 +1,6 @@
 # DRMAA for Torque/PBS Pro
 
-**This is a copy of DRMAA v1 for PBS from https://apps.man.poznan.pl/svn/pbs-drmaa/ (revision 104, 30 Sept 2019)**
+**This is a copy of DRMAA v1 for PBS from the [original develpoment team](https://apps.man.poznan.pl/trac/pbs-drmaa) (revision 104, 30 Sept 2019)**
 
 Original authors:
 
