@@ -29,8 +29,7 @@ Verbatim from the documentation:
 _______________
 ## Introduction
 
-DRMAA for Torque/PBS Pro is implementation of Open Grid Forum  DRMAA (Distributed Resource Management Application API) specification for submission and control jobs to PBS systems:  Torque and  PBS Professional. Using DRMAA, grid applications builders, portal developers and ISVs can use the same high-level API to link their software with different cluster/resource management systems.
+DRMAA for Torque/PBS Pro is an implementation of Open Grid Forum  DRMAA (Distributed Resource Management Application API) specification for submission and control jobs to PBS systems:  Torque and  PBS Professional. Using DRMAA, grid applications builders, portal developers and ISVs can use the same high-level API to link their software with different cluster/resource management systems.
 
-This software also enables the integration of  QCG-Computing with the underlying Torque/PBS Pro system for remote multi-user job submission and control over Web Services.
 _______________
 
