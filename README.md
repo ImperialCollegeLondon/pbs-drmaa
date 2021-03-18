@@ -3,8 +3,9 @@
 **This is a copy of DRMAA v1 for PBS from https://apps.man.poznan.pl/svn/pbs-drmaa/ (revision 104, 30 Sept 2019)**
 
 Original authors:
-mmamonski
-pkopta
+
+mmamonski  
+pkopta  
 
 The manual for the DRMAA for Torque/PBS Pro (since version 1.0.7) is available at the project wiki: 
 
@@ -12,9 +13,11 @@ The manual for the DRMAA for Torque/PBS Pro (since version 1.0.7) is available a
 
 **We're moving a copy here to further develop as the original team seems to have stopped working on this long ago and we've been unable to contact them.**
 
-Help welcome!
+Help needed!
 
 Current status:
+
+18 March 2021
 
 - Moving development here
 - Searching for interested parties
