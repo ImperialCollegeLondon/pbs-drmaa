@@ -1,5 +1,5 @@
-AC_INIT([DRMAA for PBS Pro], [1.0.19], [qcg@plgrid.pl], [pbs-drmaa])
-AC_PREREQ(2.59)
+AC_INIT([DRMAA for PBS Pro],[1.0.19],[qcg@plgrid.pl],[pbs-drmaa])
+AC_PREREQ([2.69])
 AC_REVISION([$Id$])
 AC_COPYRIGHT([
 DRMAA for Torque/PBS Professional
@@ -36,18 +36,15 @@ AC_CONFIG_AUX_DIR([scripts])
 AM_INIT_AUTOMAKE
 
 # command-line arguments:
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
-			[produce code suiteable for debugging and print logs at runtime]))
-AC_ARG_ENABLE(development, AC_HELP_STRING([--enable-development],
-			[enable development mode: make additional checks (suiteable for developers)]))
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[produce code suiteable for debugging and print logs at runtime]))
+AC_ARG_ENABLE(development, AS_HELP_STRING([--enable-development],[enable development mode: make additional checks (suiteable for developers)]))
 
 # programs:
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
-AC_PROG_RANLIB
 AC_PROG_INSTALL
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_MAKE_SET
 AC_PROG_LN_S
 
@@ -117,9 +114,9 @@ PBS libraries/headers not found;
 add --with-pbs to set PBS installation root.]) ])
 CPPFLAGS="${CPPFLAGS} -DCONFDIR=${sysconfdir}"
 
-# headers:
-AC_HEADER_STDC
-AC_HEADER_TIME
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([stddef.h stdlib.h string.h strings.h sys/time.h unistd.h])
 

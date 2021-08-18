@@ -1,5 +1,5 @@
-AC_INIT([FedStage DRMAA utilities library], [2.0.1], [drmaa-pbspro-users@lists.fedstage.com], [drmaa_utils])
-AC_PREREQ(2.59)
+AC_INIT([FedStage DRMAA utilities library],[2.0.1],[drmaa-pbspro-users@lists.fedstage.com],[drmaa_utils])
+AC_PREREQ([2.69])
 AC_REVISION([$Id: configure.ac 40 2012-09-10 09:23:08Z mmamonski $])
 AC_COPYRIGHT([
 FedStage DRMAA utilities library
@@ -32,27 +32,23 @@ AC_CONFIG_SRCDIR([drmaa_utils/xmalloc.c])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([scripts])
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 DEVELOPER_MODE="no"
 AM_CONDITIONAL([DEVELOPER_MODE], [test "x$DEVELOPER_MODE" = "xyes"])
 
 # command-line arguments:
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
-			[produce code suiteable for debugging and print logs at runtime]))
-AC_ARG_ENABLE(development, AC_HELP_STRING([--enable-development],
-			[enable development mode: make additional checks (suiteable for FedStage DRMAA utilities library developers)]))
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[produce code suiteable for debugging and print logs at runtime]))
+AC_ARG_ENABLE(development, AS_HELP_STRING([--enable-development],[enable development mode: make additional checks (suiteable for FedStage DRMAA utilities library developers)]))
 
-AC_ARG_WITH(drmaa-utils, AC_HELP_STRING([--with-drmaa-utils=...],
-		[used only to detect that drmaa utils is sub packaged]))
+AC_ARG_WITH(drmaa-utils, AS_HELP_STRING([--with-drmaa-utils=...],[used only to detect that drmaa utils is sub packaged]))
 AM_CONDITIONAL([DRMAA_UTILS_STANDALONE],
 		[test x$with_drmaa_utils = x])
 
 # programs:
 AC_PROG_CC
 AC_PROG_CPP
-AC_PROG_RANLIB
 AC_PROG_INSTALL
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_MAKE_SET
 AC_PROG_LN_S
 
@@ -147,7 +143,6 @@ ACX_PTHREAD([CFLAGS="$CFLAGS $PTHREAD_CFLAGS" LIBS="$PTHREAD_LIBS $LIBS"],
 # headers:
 AC_CHECK_HEADERS([execinfo.h fcntl.h inttypes.h libintl.h limits.h malloc.h stddef.h stdint.h stdlib.h string.h sys/time.h unistd.h])
 AC_HEADER_STDBOOL
-AC_HEADER_TIME
 
 # types and structures:
 AC_TYPE_PID_T

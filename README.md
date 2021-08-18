@@ -18,7 +18,11 @@ Help welcome!
 
 Current status:
 
-18 March 2021
+_August 2021_
+
+ - Updated build system to remove deprecated macros and out of date config
+
+_18 March 2021_
 
 - Moving development here
 - Searching for interested parties

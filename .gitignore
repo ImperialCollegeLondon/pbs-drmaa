@@ -1,8 +1,8 @@
-/aclocal.m4
-/autom4te.cache
-/config.*
-/libtool
-/scripts
+aclocal.m4
+autom4te.cache
+config.*
+libtool
+scripts
 /stamp-h1
 
 .deps
@@ -16,3 +16,4 @@ Makefile.in
 .*.swp
 *.tar.gz
 *.dir_bash_history
+

@@ -27,10 +27,8 @@
 #
 
 AC_DEFUN([AX_PBS],[
-AC_ARG_WITH([pbs], [AC_HELP_STRING([--with-pbs=<pbs-prefix>],
-		[Path to existing PBS installation root])])
-AC_ARG_ENABLE([disable-pbs-log], [AC_HELP_STRING([--disable-pbs-log],
-		[Do not use liblog while linking with PBS Professional])])
+AC_ARG_WITH([pbs], [AS_HELP_STRING([--with-pbs=<pbs-prefix>],[Path to existing PBS installation root])])
+AC_ARG_ENABLE([disable-pbs-log], [AS_HELP_STRING([--disable-pbs-log],[Do not use liblog while linking with PBS Professional])])
 		
 AC_SUBST(PBS_INCLUDES)
 AC_SUBST(PBS_LIBS)
