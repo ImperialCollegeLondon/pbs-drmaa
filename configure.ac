@@ -114,7 +114,6 @@ PBS libraries/headers not found;
 add --with-pbs to set PBS installation root.]) ])
 CPPFLAGS="${CPPFLAGS} -DCONFDIR=${sysconfdir}"
 
-AC_CHECK_INCLUDES_DEFAULT
 AC_PROG_EGREP
 
 AC_HEADER_STDBOOL

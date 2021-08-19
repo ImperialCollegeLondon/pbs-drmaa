@@ -3027,13 +3027,13 @@ _ACEOF
 
 # Some tools Automake needs.
 
-ACLOCAL=${ACLOCAL-"${am_missing_run}aclocal-${am__api_version}"}
+ACLOCAL=${ACLOCAL-"${am_missing_run}aclocal"}
 
 
 AUTOCONF=${AUTOCONF-"${am_missing_run}autoconf"}
 
 
-AUTOMAKE=${AUTOMAKE-"${am_missing_run}automake-${am__api_version}"}
+AUTOMAKE=${AUTOMAKE-"${am_missing_run}automake"}
 
 
 AUTOHEADER=${AUTOHEADER-"${am_missing_run}autoheader"}
@@ -16844,7 +16844,6 @@ fi
 
 CPPFLAGS="${CPPFLAGS} -DCONFDIR=${sysconfdir}"
 
-AC_CHECK_INCLUDES_DEFAULT
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for egrep" >&5
 $as_echo_n "checking for egrep... " >&6; }
 if ${ac_cv_path_EGREP+:} false; then :
